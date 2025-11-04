@@ -1,0 +1,10 @@
+module Opdotenv
+  module SourceParser
+    def self.parse: (String | Hash[Symbol, untyped] | Hash[String, untyped] source) -> Hash[Symbol, (String | Symbol | nil)]
+
+    def self.parse_op_path: (String path) -> [String, String]
+
+    def self.normalize_hash: (Hash[Symbol, untyped] | Hash[String, untyped] source) -> Hash[Symbol, (String | Symbol | nil)]
+  end
+end
+

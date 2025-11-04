@@ -1,0 +1,15 @@
+module Opdotenv
+  module AnywayLoader
+    class Loader < ::Anyway::Loaders::Base
+      def call: (
+        String name,
+        String env_prefix,
+        String? config_path,
+        **Hash[Symbol, untyped] opts
+      ) -> Hash[String, String]
+    end
+
+    def self.register!: () -> void
+  end
+end
+

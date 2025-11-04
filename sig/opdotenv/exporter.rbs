@@ -1,0 +1,18 @@
+module Opdotenv
+  class Exporter
+    def self.export: (
+      String path,
+      Hash[String, untyped] data,
+      ?field_type: (:dotenv | :json | :yaml)?,
+      ?client: untyped,
+      ?env: Hash[String, String]
+    ) -> void
+
+    def self.infer_format_from_item: (String item) -> (:dotenv | :json | :yaml)
+
+    def self.serialize_by_format: (Hash[untyped, untyped] data, (:dotenv | :json | :yaml | :yml)) -> String
+
+    def self.escape_env: (untyped value) -> String
+  end
+end
+

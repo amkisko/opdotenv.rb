@@ -1,0 +1,6 @@
+module Opdotenv
+  class ClientFactory
+    def self.create: (?env: Hash[String, String]) -> (OpClient | ConnectApiClient)
+  end
+end
+

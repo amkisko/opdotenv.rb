@@ -1,0 +1,10 @@
+module Opdotenv
+  module Parsers
+    class JsonParser
+      def self.parse: (String text) -> Hash[String, String]
+
+      def self.flatten_to_string_map: (untyped obj, ?prefix: String?, ?out: Hash[String, String]) -> Hash[String, String]
+    end
+  end
+end
+

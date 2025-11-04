@@ -1,0 +1,17 @@
+module Opdotenv
+  class OpClient
+    class OpError < StandardError
+    end
+
+    def initialize: (?env: Hash[String, String]) -> void
+
+    def read: (String path) -> String
+
+    def item_get: (String item, ?vault: String?) -> String
+
+    def item_create_note: (String vault, String title, String notes) -> String
+
+    def item_create_or_update_fields: (String vault, String item, ?fields: Hash[String, String]) -> void
+  end
+end
+
