@@ -41,20 +41,33 @@ jobs:
       run: |
         # Convert rails-6.0 to rails_6.0 format for gemfile name
         GEMFILE_NAME=$(echo "${{ matrix.rails_version }}" | tr '-' '_')
+        GEMFILE_PATH="gemfiles/${GEMFILE_NAME}.gemfile"
+        # Temporarily move Gemfile.lock to avoid bundler trying to use incompatible versions
+        if [ -f "Gemfile.lock" ]; then
+          mv Gemfile.lock Gemfile.lock.backup
+        fi
+        # Unset BUNDLE_GEMFILE to ensure appraisal uses the main Gemfile
+        unset BUNDLE_GEMFILE
+        # Generate the appraisal gemfile (this will create a new lockfile for the appraisal)
         appraisal install ${{ matrix.rails_version }} || true
+        # Restore original lockfile
+        if [ -f "Gemfile.lock.backup" ]; then
+          mv Gemfile.lock.backup Gemfile.lock
+        fi
         # Verify gemfile was created
-        if [ ! -f "gemfiles/${GEMFILE_NAME}.gemfile" ]; then
-          echo "Error: gemfile not created at gemfiles/${GEMFILE_NAME}.gemfile"
+        if [ ! -f "${GEMFILE_PATH}" ]; then
+          echo "Error: gemfile not created at ${GEMFILE_PATH}"
           exit 1
         fi
         # Set BUNDLE_GEMFILE for subsequent steps
-        echo "BUNDLE_GEMFILE=gemfiles/${GEMFILE_NAME}.gemfile" >> $GITHUB_ENV
+        echo "BUNDLE_GEMFILE=${GEMFILE_PATH}" >> $GITHUB_ENV
     
     - name: Update lockfile for platform and Ruby version
       run: |
         GEMFILE_NAME=$(echo "${{ matrix.rails_version }}" | tr '-' '_')
         GEMFILE_PATH="gemfiles/${GEMFILE_NAME}.gemfile"
         export BUNDLE_GEMFILE=${GEMFILE_PATH}
+        # If lockfile exists, try to update it, otherwise generate a new one
         if [ -f "${GEMFILE_PATH}.lock" ]; then
           # Add Linux platform if needed
           bundle lock --add-platform x86_64-linux --gemfile ${GEMFILE_PATH} 2>/dev/null || true
@@ -64,6 +77,9 @@ jobs:
             rm -f "${GEMFILE_PATH}.lock"
             bundle install --gemfile ${GEMFILE_PATH}
           fi
+        else
+          # Generate new lockfile
+          bundle install --gemfile ${GEMFILE_PATH}
         fi
     
     - name: Install dependencies
