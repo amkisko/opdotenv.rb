@@ -196,6 +196,7 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
+  activesupport (~> 7.0.0)
   appraisal (~> 2.4)
   opdotenv!
   pry (~> 0.14)
