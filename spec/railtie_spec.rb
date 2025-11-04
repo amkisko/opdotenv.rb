@@ -1,19 +1,11 @@
 require "spec_helper"
 require "active_support/ordered_options"
-require "railties"
 
-# Ensure Rails module and logger are available for tests
-unless defined?(Rails)
-  module Rails
-    def self.logger
-      @logger ||= Logger.new($stdout)
-    end
-  end
-end
+# Only test Railtie when railties is available (via appraisals)
+if defined?(Rails::Railtie)
+  require "opdotenv/railtie"
 
-require "opdotenv/railtie"
-
-RSpec.describe Opdotenv::Railtie do
+  RSpec.describe Opdotenv::Railtie do
   it "initializes and loads from sources array with simplified string format" do
     # Build fake Rails app config
     options = ActiveSupport::OrderedOptions.new
@@ -108,5 +100,6 @@ RSpec.describe Opdotenv::Railtie do
   ensure
     ENV.delete("OP_CONNECT_URL")
     ENV.delete("OP_CONNECT_TOKEN")
+  end
   end
 end
