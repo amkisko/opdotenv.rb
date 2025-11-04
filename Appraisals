@@ -1,15 +1,23 @@
-appraise "ruby-2.7.8" do
-  ruby "2.7.8"
+appraise "rails-6.0" do
+  gem "railties", "~> 6.0.0"
 end
 
-appraise "ruby-3.0.6" do
-  ruby "3.0.6"
+appraise "rails-6.1" do
+  gem "railties", "~> 6.1.0"
 end
 
-appraise "ruby-3.4.7" do
-  ruby "3.4.7"
+appraise "rails-7.0" do
+  gem "railties", "~> 7.0.0"
 end
 
-appraise "truffleruby-25.0.0" do
-  ruby "truffleruby-25.0.0"
+appraise "rails-7.1" do
+  gem "railties", "~> 7.1.0"
+end
+
+appraise "rails-7.2" do
+  gem "railties", "~> 7.2.0"
+end
+
+appraise "rails-8.0" do
+  gem "railties", "~> 8.0.0"
 end
