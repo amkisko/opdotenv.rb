@@ -1,6 +1,16 @@
 require "spec_helper"
 require "active_support/ordered_options"
-require "rails"
+require "railties"
+
+# Ensure Rails module and logger are available for tests
+unless defined?(Rails)
+  module Rails
+    def self.logger
+      @logger ||= Logger.new($stdout)
+    end
+  end
+end
+
 require "opdotenv/railtie"
 
 RSpec.describe Opdotenv::Railtie do
