@@ -1,0 +1,17 @@
+module Opdotenv
+  class ConnectApiClient
+    class ConnectApiError < StandardError
+    end
+
+    def initialize: (String base_url, String access_token, ?env: Hash[String, String]) -> void
+
+    def read: (String path) -> String
+
+    def item_get: (String item_title, ?vault: String?) -> String
+
+    def item_create_note: (String vault, String title, String notes) -> String
+
+    def item_create_or_update_fields: (String vault, String item, ?fields: Hash[String, String]) -> void
+  end
+end
+

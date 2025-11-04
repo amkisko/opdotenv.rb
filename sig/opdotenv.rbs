@@ -1,0 +1,7 @@
+module Opdotenv
+  VERSION: String
+end
+
+# Type signatures for all Opdotenv modules and classes
+# See individual files in sig/opdotenv/ for detailed signatures
+

@@ -1,0 +1,8 @@
+module Opdotenv
+  module Parsers
+    class YamlParser
+      def self.parse: (String text) -> Hash[String, String]
+    end
+  end
+end
+

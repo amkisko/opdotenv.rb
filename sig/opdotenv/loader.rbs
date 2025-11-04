@@ -1,0 +1,19 @@
+module Opdotenv
+  class Loader
+    def self.load: (
+      String path,
+      ?field_name: String?,
+      ?field_type: (:dotenv | :json | :yaml),
+      ?env: Hash[String, String],
+      ?client: untyped,
+      ?overwrite: bool
+    ) -> Hash[String, String]
+
+    def self.parse_by_format: (String text, (:dotenv | :json | :yaml | :yml)) -> Hash[String, String]
+
+    def self.parse_op_path: (String path) -> [String, String]
+
+    def self.merge_into_env: (Hash[String, String] env, Hash[untyped, untyped] hash, ?overwrite: bool) -> void
+  end
+end
+
