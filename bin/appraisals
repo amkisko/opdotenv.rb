@@ -3,15 +3,16 @@
 # Run appraisal tests locally
 # Usage:
 #   bin/appraisals                          # Run tests for all appraisals
-#   bin/appraisals ruby-3.1                 # Run tests for a specific appraisal
-#   bin/appraisals ruby-3.1 ruby-3.4        # Run tests for multiple appraisals
-#   bin/appraisals ruby-3.1 rspec -fd       # Run rspec with flags for an appraisal
-#   bin/appraisals ruby-3.1 rake spec       # Run rake spec for an appraisal
+#   bin/appraisals rails-6.0                 # Run tests for a specific appraisal
+#   bin/appraisals rails-6.0 rails-7.0       # Run tests for multiple appraisals
+#   bin/appraisals rails-6.0 rspec -fd      # Run rspec with flags for an appraisal
+#   bin/appraisals rails-6.0 rake spec      # Run rake spec for an appraisal
 
 require "bundler/setup"
 
 APP_ROOT = File.dirname(File.dirname(File.expand_path(__FILE__)))
 APPRAISALS_FILE = File.join(APP_ROOT, "Appraisals")
+GEMFILES_DIR = File.join(APP_ROOT, "gemfiles")
 
 unless File.exist?(APPRAISALS_FILE)
   $stderr.puts "Error: Cannot find Appraisals file at #{APPRAISALS_FILE}"
@@ -29,10 +30,10 @@ def usage
 
     Examples:
       bin/appraisals                            # Run rspec for all appraisals
-      bin/appraisals ruby-2.7.8                 # Run rspec for ruby-2.7.8
-      bin/appraisals ruby-3.0.6                 # Run rspec for ruby-3.0.6
-      bin/appraisals ruby-3.4.7                 # Run rspec for ruby-3.4.7
-      bin/appraisals truffleruby-25.0.0         # Run rspec for truffleruby-25.0.0
+      bin/appraisals rails-6.0                  # Run rspec for rails-6.0
+      bin/appraisals rails-7.0                  # Run rspec for rails-7.0
+      bin/appraisals rails-8.0                  # Run rspec for rails-8.0
+      bin/appraisals rails-6.0 rspec -fd        # Run rspec with flags
 
     Available appraisals: #{AVAILABLE_APPRAISALS.join(', ')}
   USAGE
@@ -65,62 +66,70 @@ def parse_args
   [appraisals, command]
 end
 
+def ensure_gemfiles_exist
+  # Check if any gemfiles are missing
+  missing = AVAILABLE_APPRAISALS.select do |appraisal|
+    gemfile_name = appraisal.gsub("-", "_") + ".gemfile"
+    gemfile_path = File.join(GEMFILES_DIR, gemfile_name)
+    !File.exist?(gemfile_path)
+  end
+
+  return if missing.empty?
+
+  puts "Generating missing gemfiles for: #{missing.join(', ')}..."
+  Dir.chdir(APP_ROOT) do
+    missing.each do |appraisal|
+      unless system("bundle exec appraisal install #{appraisal}")
+        puts "✗ ERROR: Failed to generate gemfile for #{appraisal}"
+        return false
+      end
+    end
+  end
+  true
+end
+
+def ensure_platform_compatibility(gemfile_path)
+  lockfile_path = gemfile_path + ".lock"
+  return unless File.exist?(lockfile_path)
+
+  # Check if x86_64-linux platform is already in the lockfile
+  lockfile_content = File.read(lockfile_path)
+  return if lockfile_content.include?("x86_64-linux")
+
+  # Add Linux platform for CI compatibility
+  puts "Adding x86_64-linux platform to #{File.basename(lockfile_path)}..."
+  Dir.chdir(APP_ROOT) do
+    system("bundle lock --add-platform x86_64-linux --gemfile #{gemfile_path}") || true
+  end
+end
+
 def run_appraisal(appraisal, command)
   puts "\n" + "=" * 80
   puts "Running #{appraisal} with: #{command.join(' ')}"
   puts "=" * 80
 
-  # Appraisal converts hyphens to underscores in gemfile names
-  gemfile_name = appraisal.gsub("-", "_") + ".gemfile"
-  gemfile_path = File.join(APP_ROOT, "gemfiles", gemfile_name)
-  
-  unless File.exist?(gemfile_path)
-    puts "Generating gemfiles for all appraisals..."
-    Dir.chdir(APP_ROOT) do
-      system("bundle exec appraisal install")
-    end
-    unless File.exist?(gemfile_path)
-      puts "✗ ERROR: Gemfile for #{appraisal} not found after generation"
-      return false
-    end
+  # Ensure all gemfiles exist
+  unless ensure_gemfiles_exist
+    puts "✗ ERROR: Failed to generate required gemfiles"
+    return false
   end
 
-  # Read Ruby version from gemfile
-  content = File.read(gemfile_path)
-  ruby_line = content.lines.find { |line| line.strip.start_with?("ruby ") }
+  # Appraisal converts hyphens to underscores in gemfile names
+  gemfile_name = appraisal.gsub("-", "_") + ".gemfile"
+  gemfile_path = File.join(GEMFILES_DIR, gemfile_name)
   
-  # Set up environment for version switching
-  env = ENV.to_h
-  ruby_version = nil
-  if ruby_line
-    ruby_version = ruby_line.match(/ruby\s+["']([^"']+)["']/)&.captures&.first
-    if ruby_version && ruby_version != "truffleruby" && !ruby_version.start_with?("truffleruby")
-      # Use rbenv or mise to set Ruby version via environment
-      if system("which rbenv > /dev/null 2>&1")
-        env["RBENV_VERSION"] = ruby_version
-        puts "Using Ruby #{ruby_version} via rbenv"
-      elsif system("which mise > /dev/null 2>&1")
-        # For mise, we need to use mise exec, not just env var
-        puts "Using Ruby #{ruby_version} via mise (requires mise exec)"
-      else
-        puts "⚠ WARNING: rbenv or mise not found. Using current Ruby version."
-      end
-    end
+  unless File.exist?(gemfile_path)
+    puts "✗ ERROR: Gemfile for #{appraisal} not found at #{gemfile_path}"
+    return false
   end
+
+  # Ensure platform compatibility for CI
+  ensure_platform_compatibility(gemfile_path)
 
   # Install gems for this specific gemfile
   puts "Installing gems for #{appraisal}..."
   Dir.chdir(APP_ROOT) do
-    install_cmd = ["bundle", "install", "--gemfile", gemfile_path]
-    install_success = if env["RBENV_VERSION"]
-      system(env, *install_cmd)
-    elsif system("which mise > /dev/null 2>&1") && ruby_version
-      system("mise", "exec", "--", "ruby@#{ruby_version}", *install_cmd)
-    else
-      system(*install_cmd)
-    end
-    
-    unless install_success
+    unless system("bundle install --gemfile #{gemfile_path}")
       puts "✗ ERROR: Failed to install gems for #{appraisal}"
       return false
     end
@@ -129,13 +138,7 @@ def run_appraisal(appraisal, command)
   # Run the command with the appraisal gemfile
   Dir.chdir(APP_ROOT) do
     run_cmd = ["bundle", "exec", "appraisal", appraisal] + command
-    if env["RBENV_VERSION"]
-      system(env, *run_cmd)
-    elsif system("which mise > /dev/null 2>&1") && ruby_version
-      system("mise", "exec", "--", "ruby@#{ruby_version}", *run_cmd)
-    else
-      system(*run_cmd)
-    end
+    system(*run_cmd)
   end
 end
 
