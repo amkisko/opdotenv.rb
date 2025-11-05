@@ -54,6 +54,13 @@ RSpec.describe Opdotenv::OpClient do
     }.to raise_error(ArgumentError, /Invalid path format/)
   end
 
+  it "read strips output" do
+    client = TestOpClient.new
+    allow(client).to receive(:capture).with(["op", "read", "op://Vault/Item"]).and_return("  value  \n")
+    result = client.read("op://Vault/Item")
+    expect(result).to eq("value")
+  end
+
   describe "#item_exists?" do
     it "returns true when item exists" do
       client = described_class.new
@@ -81,104 +88,24 @@ RSpec.describe Opdotenv::OpClient do
   end
 
   describe "#capture" do
-    it "returns JSON even when exit code is non-zero for JSON format commands" do
-      # Create a test client that simulates the JSON fallback logic
-      test_client = Class.new(Opdotenv::OpClient) do
-        def capture(args)
-          # Simulate valid JSON output with non-zero exit
-          out = '{"id":"123"}'
-
-          # For JSON output, try to parse even if exit code is non-zero
-          if args.include?("--format") && args.include?("json")
-            begin
-              JSON.parse(out)
-              return out # Valid JSON, return it even if exit code is non-zero
-            rescue JSON::ParserError
-              # Not valid JSON, fall through to error handling
-            end
-          end
-
-          raise Opdotenv::OpClient::OpError, out
-        end
-      end.new
-
-      result = test_client.send(:capture, ["op", "item", "get", "Item", "--format", "json"])
-      expect(result).to eq('{"id":"123"}')
-    end
-
-    it "raises OpError when JSON parsing fails for JSON format commands" do
-      test_client = Class.new(Opdotenv::OpClient) do
-        def capture(args)
-          out = "invalid json"
-
-          # For JSON output, try to parse even if exit code is non-zero
-          if args.include?("--format") && args.include?("json")
-            begin
-              JSON.parse(out)
-              return out
-            rescue JSON::ParserError
-              # Not valid JSON, fall through to error handling
-            end
-          end
-
-          raise Opdotenv::OpClient::OpError, out
-        end
-      end.new
-
-      expect {
-        test_client.send(:capture, ["op", "item", "get", "Item", "--format", "json"])
-      }.to raise_error(Opdotenv::OpClient::OpError, /invalid json/)
-    end
+    let(:client) { described_class.new }
 
     it "raises OpError when command fails with non-JSON output" do
-      test_client = Class.new(Opdotenv::OpClient) do
-        def capture(args)
-          out = "Command failed"
-
-          # For JSON output, try to parse even if exit code is non-zero
-          if args.include?("--format") && args.include?("json")
-            begin
-              JSON.parse(out)
-              return out
-            rescue JSON::ParserError
-              # Not valid JSON, fall through to error handling
-            end
-          end
-
-          raise Opdotenv::OpClient::OpError, out
-        end
-      end.new
-
+      # Test non-JSON command failure using real command
       expect {
-        test_client.send(:capture, ["op", "read", "op://Vault/Item"])
+        client.send(:capture, ["sh", "-c", 'echo "Command failed"; exit 1'])
       }.to raise_error(Opdotenv::OpClient::OpError, /Command failed/)
     end
 
-    it "handles nil status" do
-      test_client = Class.new(Opdotenv::OpClient) do
-        def capture(args)
-          out = "output"
-
-          # For JSON output, try to parse even if exit code is non-zero
-          if args.include?("--format") && args.include?("json")
-            begin
-              JSON.parse(out)
-              return out
-            rescue JSON::ParserError
-              # Not valid JSON, fall through to error handling
-            end
-          end
-
-          # Simulate nil status - check if status is nil first
-          status = nil
-          raise Opdotenv::OpClient::OpError, out if status.nil? || !status.success?
-          out
-        end
-      end.new
-
-      expect {
-        test_client.send(:capture, ["op", "read", "op://Vault/Item"])
-      }.to raise_error(Opdotenv::OpClient::OpError, /output/)
+    it "returns output when command succeeds" do
+      # Test successful command using real command
+      result = client.send(:capture, ["sh", "-c", 'echo "success output"'])
+      expect(result.strip).to eq("success output")
     end
+
+    # Note: Lines 83-84 (JSON.parse when exit code non-zero) are an edge case
+    # that's difficult to test without complex mocking of $CHILD_STATUS.
+    # The code is defensive and handles the rare scenario where op command
+    # fails but outputs valid JSON. This is acceptable as untested edge case.
   end
 end

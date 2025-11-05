@@ -211,6 +211,19 @@ RSpec.describe Opdotenv::ConnectApiClient do
       expect(request).to have_received(:body=).with('{"key":"value"}')
     end
 
+    it "handles PATCH method" do
+      request = instance_double(Net::HTTP::Patch)
+      allow(Net::HTTP::Patch).to receive(:new).and_return(request)
+      allow(request).to receive(:[]=)
+      allow(request).to receive(:body=)
+      uri = URI.parse("http://localhost:8080/v1/vaults/test/items/item-id")
+      allow(URI).to receive(:join).with(base_url, "/v1/vaults/test/items/item-id").and_return(uri)
+
+      client.send(:api_request, :patch, "/v1/vaults/test/items/item-id", [{"op" => "replace", "path" => "/fields/0/value", "value" => "new"}])
+
+      expect(request).to have_received(:body=).with('[{"op":"replace","path":"/fields/0/value","value":"new"}]')
+    end
+
     it "handles 204 no content response" do
       no_content = instance_double(Net::HTTPResponse, code: "204", body: "")
       request = instance_double(Net::HTTP::Delete)
@@ -237,6 +250,33 @@ RSpec.describe Opdotenv::ConnectApiClient do
       expect {
         client.send(:api_request, :post, "/v1/vaults/test/items", {})
       }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /Bad request/)
+    end
+
+    it "handles 400 with plain text error" do
+      error_response = instance_double(Net::HTTPResponse, code: "400", body: "Invalid request")
+      request = instance_double(Net::HTTP::Get)
+      allow(Net::HTTP::Get).to receive(:new).and_return(request)
+      allow(request).to receive(:[]=)
+      uri = URI.parse("http://localhost:8080/v1/vaults")
+      allow(URI).to receive(:join).with(base_url, "/v1/vaults").and_return(uri)
+      allow(http).to receive(:request).and_return(error_response)
+
+      expect {
+        client.send(:api_request, :get, "/v1/vaults")
+      }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /API error \(400\): Invalid request/)
+    end
+
+    it "handles 200 with empty body" do
+      empty_response = instance_double(Net::HTTPResponse, code: "200", body: "")
+      request = instance_double(Net::HTTP::Get)
+      allow(Net::HTTP::Get).to receive(:new).and_return(request)
+      allow(request).to receive(:[]=)
+      uri = URI.parse("http://localhost:8080/v1/vaults")
+      allow(URI).to receive(:join).with(base_url, "/v1/vaults").and_return(uri)
+      allow(http).to receive(:request).and_return(empty_response)
+
+      result = client.send(:api_request, :get, "/v1/vaults")
+      expect(result).to eq({})
     end
   end
 
@@ -368,6 +408,161 @@ RSpec.describe Opdotenv::ConnectApiClient do
 
       result = client.send(:item_by_title_in_vault, "v1", "Item")
       expect(result).to eq(item_full)
+    end
+  end
+
+  describe "#find_field" do
+    it "finds field by label and id and notesPlain" do
+      item = {
+        "fields" => [
+          {"id" => "id-1", "label" => "API_KEY", "value" => "v1"},
+          {"id" => "id-2", "label" => "notesPlain", "purpose" => "NOTES", "value" => "A=1\n"}
+        ]
+      }
+
+      f1 = client.send(:find_field, item, "API_KEY")
+      expect(f1["value"]).to eq("v1")
+
+      f2 = client.send(:find_field, item, "id-1")
+      expect(f2["value"]).to eq("v1")
+
+      f3 = client.send(:find_field, item, "notesPlain")
+      expect(f3["value"]).to eq("A=1\n")
+    end
+  end
+
+  describe "#read edge cases" do
+    it "returns empty string when field not found" do
+      item = {"id" => "i1", "title" => "Item", "fields" => [{"label" => "FOO", "value" => "x"}]}
+      allow(client).to receive(:get_item).with("Vault", "Item").and_return(item)
+      val = client.read("op://Vault/Item/BAR")
+      expect(val).to eq("")
+    end
+
+    it "returns empty when no notesPlain present" do
+      item = {"id" => "i1", "title" => "Item", "fields" => []}
+      allow(client).to receive(:get_item).with("Vault", "Item").and_return(item)
+      val = client.read("op://Vault/Item")
+      expect(val).to eq("")
+    end
+  end
+
+  describe "#item_get" do
+    it "searches all vaults when vault is nil" do
+      allow(client).to receive(:api_request).with(:get, "/v1/vaults").and_return([
+        {"id" => "v1", "name" => "One"}, {"id" => "v2", "name" => "Two"}
+      ])
+      allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items").and_return([
+        {"id" => "i1", "title" => "Item"}
+      ])
+      allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items/i1").and_return({"id" => "i1", "title" => "Item", "fields" => []})
+
+      json = client.item_get("Item", vault: nil)
+      parsed = JSON.parse(json)
+      expect(parsed["title"]).to eq("Item")
+    end
+
+    it "fetches specific vault when provided" do
+      allow(client).to receive(:api_request).with(:get, "/v1/vaults").and_return([
+        {"id" => "v1", "name" => "Target"}
+      ])
+      allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items").and_return([
+        {"id" => "i2", "title" => "Cfg"}
+      ])
+      allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items/i2").and_return({"id" => "i2", "title" => "Cfg", "fields" => []})
+
+      json = client.item_get("Cfg", vault: "Target")
+      expect(json).to include("Cfg")
+    end
+  end
+
+  describe "#api_request with query parameters" do
+    let(:http) { instance_double(Net::HTTP) }
+
+    before do
+      allow(Net::HTTP).to receive(:new).and_return(http)
+      allow(http).to receive(:use_ssl=)
+      allow(http).to receive(:open_timeout=)
+      allow(http).to receive(:read_timeout=)
+    end
+
+    it "handles path with query string" do
+      request = instance_double(Net::HTTP::Get)
+      allow(Net::HTTP::Get).to receive(:new).with("/v1/vaults?filter=active").and_return(request)
+      allow(request).to receive(:[]=)
+      uri = URI.parse("http://localhost:8080/v1/vaults?filter=active")
+      allow(URI).to receive(:join).with(base_url, "/v1/vaults?filter=active").and_return(uri)
+
+      response = instance_double(Net::HTTPResponse, code: "200", body: "[]")
+      allow(http).to receive(:request).and_return(response)
+
+      result = client.send(:api_request, :get, "/v1/vaults?filter=active")
+      expect(result).to eq([])
+    end
+  end
+
+  describe "#api_request unsupported methods" do
+    it "raises on unsupported HTTP method" do
+      expect {
+        client.send(:api_request, :head, "/v1/vaults")
+      }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /Unsupported HTTP method/)
+    end
+  end
+
+  describe "#api_request retries" do
+    let(:http) { instance_double(Net::HTTP) }
+
+    before do
+      allow(Net::HTTP).to receive(:new).and_return(http)
+      allow(http).to receive(:use_ssl=)
+      allow(http).to receive(:open_timeout=)
+      allow(http).to receive(:read_timeout=)
+    end
+
+    it "retries once on timeout then succeeds" do
+      request = instance_double(Net::HTTP::Get)
+      allow(Net::HTTP::Get).to receive(:new).and_return(request)
+      allow(request).to receive(:[]=)
+      uri = URI.parse("http://localhost:8080/v1/vaults")
+      allow(URI).to receive(:join).with(base_url, "/v1/vaults").and_return(uri)
+
+      response = instance_double(Net::HTTPResponse, code: "200", body: '{"ok":true}', is_a?: true)
+      allow(response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
+      call_sequence = [-> { raise Timeout::Error }, -> { response }]
+      allow(http).to receive(:request) { call_sequence.shift.call }
+
+      result = client.send(:api_request, :get, "/v1/vaults")
+      expect(result).to eq({"ok" => true})
+    end
+
+    it "raises after second timeout" do
+      request = instance_double(Net::HTTP::Get)
+      allow(Net::HTTP::Get).to receive(:new).and_return(request)
+      allow(request).to receive(:[]=)
+      uri = URI.parse("http://localhost:8080/v1/vaults")
+      allow(URI).to receive(:join).with(base_url, "/v1/vaults").and_return(uri)
+
+      allow(http).to receive(:request).and_raise(Timeout::Error)
+
+      expect {
+        client.send(:api_request, :get, "/v1/vaults")
+      }.to raise_error(Timeout::Error)
+    end
+
+    it "retries once on ECONNRESET then succeeds" do
+      request = instance_double(Net::HTTP::Get)
+      allow(Net::HTTP::Get).to receive(:new).and_return(request)
+      allow(request).to receive(:[]=)
+      uri = URI.parse("http://localhost:8080/v1/vaults")
+      allow(URI).to receive(:join).with(base_url, "/v1/vaults").and_return(uri)
+
+      response = instance_double(Net::HTTPResponse, code: "200", body: '{"ok":true}', is_a?: true)
+      allow(response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
+      call_sequence = [-> { raise Errno::ECONNRESET }, -> { response }]
+      allow(http).to receive(:request) { call_sequence.shift.call }
+
+      result = client.send(:api_request, :get, "/v1/vaults")
+      expect(result).to eq({"ok" => true})
     end
   end
 end
