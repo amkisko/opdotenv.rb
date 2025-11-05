@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 1.0.2 (2025-11-05)
+
+- Enhance error handling and security measures across the codebase
+- Improved error logging to avoid leaking sensitive information (uses exception class names instead of messages)
+- Enhanced API error handling with generic messages for server errors to prevent sensitive data exposure
+- Updated CLI output to clarify that secrets may be displayed intentionally for command-line usage
+- Update Rails appraisals: remove support for Rails 6.0, 7.0, 7.1, 8.0; maintain support for Rails 6.1, 7.2, 8.1
+
 ## 1.0.1 (2025-11-05)
 
 - Add configurable op CLI path support
