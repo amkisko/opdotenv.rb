@@ -1,7 +1,5 @@
 # opdotenv
 
-[![Gem Version](https://badge.fury.io/rb/opdotenv.svg)](https://badge.fury.io/rb/opdotenv) [![Test Status](https://github.com/amkisko/opdotenv/actions/workflows/ci.yml/badge.svg)](https://github.com/amkisko/opdotenv/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/amkisko/opdotenv/graph/badge.svg?token=YOUR_TOKEN)](https://codecov.io/gh/amkisko/opdotenv/graph/badge.svg?token=YOUR_TOKEN)
-
 Load environment variables from 1Password using the `op` CLI or 1Password Connect Server API. Supports dotenv, JSON, and YAML formats.
 
 Sponsored by [Kisko Labs](https://www.kiskolabs.com).
@@ -18,6 +16,8 @@ gem "opdotenv"
 
 Choose one:
 - **1Password CLI** (`op`) - must be installed and authenticated (`op signin`)
+  - By default, `op` is expected to be in your `PATH`
+  - You can configure a custom path via `OP_CLI_PATH` or `OPDOTENV_CLI_PATH` environment variables, or via Rails config (see below)
 - **1Password Connect Server** - set `OP_CONNECT_URL` and `OP_CONNECT_TOKEN` environment variables
 
 Ruby 2.7+ supported.
@@ -54,6 +54,22 @@ Rails.application.configure do
   config.opdotenv.connect_url = "https://connect.example.com"
   config.opdotenv.connect_token = Rails.application.credentials.dig(:op_connect, :token)
 end
+```
+
+### Configure op CLI path
+
+If your `op` CLI command is not in your `PATH` or you want to use a custom path:
+
+```ruby
+Rails.application.configure do
+  config.opdotenv.cli_path = "/usr/local/bin/op"
+end
+```
+
+Alternatively, you can set the `OP_CLI_PATH` or `OPDOTENV_CLI_PATH` environment variable:
+
+```bash
+export OP_CLI_PATH=/usr/local/bin/op
 ```
 
 ### Disable automatic loading

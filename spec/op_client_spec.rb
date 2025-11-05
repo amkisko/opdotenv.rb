@@ -61,6 +61,50 @@ RSpec.describe Opdotenv::OpClient do
     expect(result).to eq("value")
   end
 
+  describe "cli_path configuration" do
+    it "defaults to 'op' when not specified" do
+      client = described_class.new
+      expect(client.instance_variable_get(:@cli_path)).to eq("op")
+    end
+
+    it "uses cli_path parameter when provided" do
+      client = described_class.new(cli_path: "/custom/path/op")
+      expect(client.instance_variable_get(:@cli_path)).to eq("/custom/path/op")
+    end
+
+    it "reads OP_CLI_PATH from environment" do
+      env = {"OP_CLI_PATH" => "/env/path/op"}
+      client = described_class.new(env: env)
+      expect(client.instance_variable_get(:@cli_path)).to eq("/env/path/op")
+    end
+
+    it "reads OPDOTENV_CLI_PATH from environment" do
+      env = {"OPDOTENV_CLI_PATH" => "/env/path/op"}
+      client = described_class.new(env: env)
+      expect(client.instance_variable_get(:@cli_path)).to eq("/env/path/op")
+    end
+
+    it "prefers cli_path parameter over environment variables" do
+      env = {"OP_CLI_PATH" => "/env/path/op", "OPDOTENV_CLI_PATH" => "/env/path/op"}
+      client = described_class.new(env: env, cli_path: "/param/path/op")
+      expect(client.instance_variable_get(:@cli_path)).to eq("/param/path/op")
+    end
+
+    it "uses custom cli_path in read command" do
+      client = TestOpClient.new
+      client.instance_variable_set(:@cli_path, "/custom/path/op")
+      client.read("op://Vault/Item")
+      expect(client.calls.last).to eq(["/custom/path/op", "read", "op://Vault/Item"])
+    end
+
+    it "uses custom cli_path in item_get command" do
+      client = TestOpClient.new
+      client.instance_variable_set(:@cli_path, "/custom/path/op")
+      client.item_get("Item", vault: "V")
+      expect(client.calls.last).to eq(["/custom/path/op", "item", "get", "Item", "--format", "json", "--vault", "V"])
+    end
+  end
+
   describe "#item_exists?" do
     it "returns true when item exists" do
       client = described_class.new
@@ -83,6 +127,14 @@ RSpec.describe Opdotenv::OpClient do
       allow(client).to receive(:system).with("op", "item", "get", "Item", "--vault", "Vault", out: File::NULL, err: File::NULL).and_return(true)
 
       result = client.send(:item_exists?, "Item", vault: "Vault")
+      expect(result).to be true
+    end
+
+    it "uses custom cli_path when provided" do
+      client = described_class.new(cli_path: "/custom/path/op")
+      allow(client).to receive(:system).with("/custom/path/op", "item", "get", "Item", out: File::NULL, err: File::NULL).and_return(true)
+
+      result = client.send(:item_exists?, "Item")
       expect(result).to be true
     end
   end

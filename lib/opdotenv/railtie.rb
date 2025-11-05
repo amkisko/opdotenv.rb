@@ -10,6 +10,8 @@ module Opdotenv
     # Optional 1Password Connect settings (alternatively set via ENV)
     config.opdotenv.connect_url = nil
     config.opdotenv.connect_token = nil
+    # Optional op CLI path (defaults to "op", can also be set via OP_CLI_PATH or OPDOTENV_CLI_PATH env vars)
+    config.opdotenv.cli_path = nil
     config.opdotenv.overwrite = true
     config.opdotenv.auto_load = true
 
@@ -23,6 +25,11 @@ module Opdotenv
       if config.connect_url && config.connect_token
         ENV["OP_CONNECT_URL"] = config.connect_url
         ENV["OP_CONNECT_TOKEN"] = config.connect_token
+      end
+
+      # Set op CLI path from Rails configuration if provided
+      if config.cli_path
+        ENV["OPDOTENV_CLI_PATH"] = config.cli_path
       end
 
       # Load from configured sources
