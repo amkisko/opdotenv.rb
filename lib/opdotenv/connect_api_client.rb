@@ -261,17 +261,25 @@ module Opdotenv
       when 404
         raise ConnectApiError, "Not found: #{path}"
       when 500..599
-        raise ConnectApiError, "API error (#{code}): #{extract_error_message(response)}"
+        raise ConnectApiError, "API error (#{code}): Server error"
       else
-        raise ConnectApiError, "API error (#{code}): #{extract_error_message(response)}"
+        # Extract safe error message without leaking response body
+        safe_message = extract_safe_error_message(response)
+        raise ConnectApiError, "API error (#{code}): #{safe_message}"
       end
     end
 
-    def extract_error_message(response)
+    def extract_safe_error_message(response)
+      # Only extract structured error messages from JSON responses
+      # Never include raw response body to avoid leaking secrets
+      begin
       parsed = JSON.parse(response.body)
-      parsed["message"] || parsed["error"] || response.body
+        # Only return known safe fields that are typically error messages
+        parsed["message"] || parsed["error"] || "Request failed"
     rescue JSON::ParserError
-      response.body
+        # For non-JSON responses, return generic message to avoid leaking body
+        "Request failed"
+      end
     end
 
     def validate_url(url)

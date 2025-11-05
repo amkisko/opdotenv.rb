@@ -54,7 +54,9 @@ module Opdotenv
           )
         rescue => e
           # Only log errors, not warnings, to avoid noise in production
-          Rails.logger&.error("Opdotenv: Failed to load #{parsed[:path]}: #{e.message}")
+          # Never log exception messages that might contain secrets from command output
+          # Use exception class name instead of message for security
+          Rails.logger&.error("Opdotenv: Failed to load #{parsed[:path]}: #{e.class.name}")
         end
       end
     end

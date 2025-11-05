@@ -88,7 +88,13 @@ module Opdotenv
         end
       end
 
-      raise OpError, out if status.nil? || !status.success?
+      if status.nil? || !status.success?
+        # Never leak command output in error messages for security
+        # Extract safe error information without exposing secrets
+        exit_code = status&.exitstatus || "unknown"
+        command_name = args.first || "op"
+        raise OpError, "Command failed: #{command_name} (exit code: #{exit_code})"
+      end
       out
     end
   end

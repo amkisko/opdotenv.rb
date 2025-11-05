@@ -118,8 +118,8 @@ begin
 rescue => e
   # Only warn if debugging is enabled, as this is expected when Anyway Config isn't used
   if ENV["OPDOTENV_DEBUG"] == "true"
-    warn "[opdotenv] Failed to register Anyway loader: #{e.message}"
-    warn "[opdotenv] Error details: #{e.class}: #{e.message}"
+    # Avoid leaking exception messages
+    warn "[opdotenv] Failed to register Anyway loader: #{e.class}"
     warn "[opdotenv] Backtrace: #{e.backtrace.first(3).join("\n")}" if e.backtrace
   end
 end
