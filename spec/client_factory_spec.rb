@@ -49,4 +49,45 @@ RSpec.describe Opdotenv::ClientFactory do
     client = described_class.create(env: env)
     expect(client).to be_a(Opdotenv::OpClient)
   end
+
+  it "passes cli_path to OpClient when provided" do
+    env = {}
+    client = described_class.create(env: env, cli_path: "/usr/local/bin/op")
+    expect(client).to be_a(Opdotenv::OpClient)
+    expect(client.instance_variable_get(:@cli_path)).to eq("/usr/local/bin/op")
+  end
+
+  it "uses OP_CLI_PATH from environment when set" do
+    env = {"OP_CLI_PATH" => "/custom/path/op"}
+    client = described_class.create(env: env)
+    expect(client).to be_a(Opdotenv::OpClient)
+    expect(client.instance_variable_get(:@cli_path)).to eq("/custom/path/op")
+  end
+
+  it "uses OPDOTENV_CLI_PATH from environment when set" do
+    env = {"OPDOTENV_CLI_PATH" => "/custom/path/op"}
+    client = described_class.create(env: env)
+    expect(client).to be_a(Opdotenv::OpClient)
+    expect(client.instance_variable_get(:@cli_path)).to eq("/custom/path/op")
+  end
+
+  it "prefers OP_CLI_PATH over OPDOTENV_CLI_PATH" do
+    env = {
+      "OP_CLI_PATH" => "/primary/path/op",
+      "OPDOTENV_CLI_PATH" => "/fallback/path/op"
+    }
+    client = described_class.create(env: env)
+    expect(client).to be_a(Opdotenv::OpClient)
+    expect(client.instance_variable_get(:@cli_path)).to eq("/primary/path/op")
+  end
+
+  it "prefers explicit cli_path parameter over environment variables" do
+    env = {
+      "OP_CLI_PATH" => "/env/path/op",
+      "OPDOTENV_CLI_PATH" => "/env/path/op"
+    }
+    client = described_class.create(env: env, cli_path: "/explicit/path/op")
+    expect(client).to be_a(Opdotenv::OpClient)
+    expect(client.instance_variable_get(:@cli_path)).to eq("/explicit/path/op")
+  end
 end

@@ -8,18 +8,19 @@ module Opdotenv
     SECURE_NOTE_CATEGORY = "secure-note"
     LOGIN_CATEGORY = "LOGIN"
 
-    def initialize(env: ENV)
+    def initialize(env: ENV, cli_path: nil)
       @env = env
+      @cli_path = cli_path || env["OP_CLI_PATH"] || env["OPDOTENV_CLI_PATH"] || "op"
     end
 
     def read(path)
       validate_path(path)
-      out = capture(["op", "read", path])
+      out = capture([@cli_path, "read", path])
       out.strip
     end
 
     def item_get(item, vault: nil)
-      args = ["op", "item", "get", item, "--format", "json"]
+      args = [@cli_path, "item", "get", item, "--format", "json"]
       args += ["--vault", vault] if vault
       capture(args)
     end
@@ -28,7 +29,7 @@ module Opdotenv
       # Create a Secure Note with given title and notesPlain
       # Use shell escaping to prevent injection
       args = [
-        "op", "item", "create",
+        @cli_path, "item", "create",
         "--category", SECURE_NOTE_CATEGORY,
         "--title", title,
         "--vault", vault,
@@ -43,10 +44,10 @@ module Opdotenv
         fields.each do |k, v|
           # Use shell escaping to prevent injection
           field_arg = "#{k}=#{v}"
-          capture(["op", "item", "edit", item, "--vault", vault, "--set", field_arg])
+          capture([@cli_path, "item", "edit", item, "--vault", vault, "--set", field_arg])
         end
       else
-        args = ["op", "item", "create", "--title", item, "--vault", vault]
+        args = [@cli_path, "item", "create", "--title", item, "--vault", vault]
         fields.each do |k, v|
           args += ["--set", "#{k}=#{v}"]
         end
@@ -57,7 +58,7 @@ module Opdotenv
     private
 
     def item_exists?(item, vault: nil)
-      args = ["op", "item", "get", item]
+      args = [@cli_path, "item", "get", item]
       args += ["--vault", vault] if vault
       system(*args, out: File::NULL, err: File::NULL)
     end
