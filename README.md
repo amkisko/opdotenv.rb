@@ -6,6 +6,10 @@ Load environment variables from 1Password using the `op` CLI or 1Password Connec
 
 Sponsored by [Kisko Labs](https://www.kiskolabs.com).
 
+<a href="https://www.kiskolabs.com">
+  <img src="https://brand.kiskolabs.com/images/logos/Kisko_Logo_Black_Horizontal-7249a361.svg" width="200" style="display: block; background: white; border-radius: 10px;" />
+</a>
+
 ## Installation
 
 Add to your Gemfile:
