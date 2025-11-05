@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 1.0.1 (2025-11-05)
+
+- Add configurable op CLI path support
+- Support for `OP_CLI_PATH` and `OPDOTENV_CLI_PATH` environment variables
+- Rails configuration option `config.opdotenv.cli_path`
+- Direct API support via `OpClient.new(cli_path: ...)` and `ClientFactory.create(cli_path: ...)`
+
 ## 1.0.0 (2025-11-04)
 
 - Initial stable release
