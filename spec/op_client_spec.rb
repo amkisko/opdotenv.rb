@@ -144,9 +144,10 @@ RSpec.describe Opdotenv::OpClient do
 
     it "raises OpError when command fails with non-JSON output" do
       # Test non-JSON command failure using real command
+      # Error message should not leak command output for security
       expect {
         client.send(:capture, ["sh", "-c", 'echo "Command failed"; exit 1'])
-      }.to raise_error(Opdotenv::OpClient::OpError, /Command failed/)
+      }.to raise_error(Opdotenv::OpClient::OpError, /Command failed: sh \(exit code: 1\)/)
     end
 
     it "returns output when command succeeds" do

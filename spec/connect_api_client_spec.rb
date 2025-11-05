@@ -180,9 +180,10 @@ RSpec.describe Opdotenv::ConnectApiClient do
       allow(URI).to receive(:join).with(base_url, "/v1/vaults").and_return(uri)
       allow(http).to receive(:request).and_return(server_error)
 
+      # 5xx errors return generic "Server error" message to avoid leaking response body
       expect {
         client.send(:api_request, :get, "/v1/vaults")
-      }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /API error/)
+      }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /API error \(500\): Server error/)
     end
 
     it "handles POST with JSON body" do
@@ -261,9 +262,10 @@ RSpec.describe Opdotenv::ConnectApiClient do
       allow(URI).to receive(:join).with(base_url, "/v1/vaults").and_return(uri)
       allow(http).to receive(:request).and_return(error_response)
 
+      # For non-JSON responses, we return generic message to avoid leaking response body
       expect {
         client.send(:api_request, :get, "/v1/vaults")
-      }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /API error \(400\): Invalid request/)
+      }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /API error \(400\): Request failed/)
     end
 
     it "handles 200 with empty body" do
