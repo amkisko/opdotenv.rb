@@ -18,4 +18,18 @@ RSpec.describe Opdotenv::Parsers::YamlParser do
       "arr_2" => "4"
     )
   end
+
+  it "handles YAML with numeric values" do
+    yaml = "port: 8080\nhost: localhost"
+    result = described_class.parse(yaml)
+    expect(result["port"]).to eq("8080")
+    expect(result["host"]).to eq("localhost")
+  end
+
+  it "handles YAML with boolean values" do
+    yaml = "enabled: true\ndebug: false"
+    result = described_class.parse(yaml)
+    expect(result["enabled"]).to eq("true")
+    expect(result["debug"]).to eq("false")
+  end
 end

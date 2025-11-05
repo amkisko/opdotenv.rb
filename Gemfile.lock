@@ -38,6 +38,8 @@ GEM
       uri (>= 0.13.1)
     addressable (2.8.7)
       public_suffix (>= 2.0.2, < 7.0)
+    anyway_config (2.7.2)
+      ruby-next-core (~> 1.0)
     appraisal (2.5.0)
       bundler
       rake
@@ -165,6 +167,7 @@ GEM
       lint_roller (~> 1.1)
       rubocop (>= 1.75.0, < 2.0)
       rubocop-ast (>= 1.38.0, < 2.0)
+    ruby-next-core (1.1.2)
     ruby-progressbar (1.13.0)
     securerandom (0.4.1)
     simplecov (0.22.0)
@@ -209,6 +212,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  anyway_config (~> 2.0)
   appraisal (~> 2.4)
   opdotenv!
   pry (~> 0.14)
