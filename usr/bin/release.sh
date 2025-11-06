@@ -44,5 +44,5 @@ if [[ "$answer" != "Y" ]]; then
 fi
 
 e "gem push $GEM_FILE"
-e "git tag $VERSION && git push origin $VERSION"
+e "git tag $VERSION && git push --tags"
 e "gh release create $VERSION --generate-notes"

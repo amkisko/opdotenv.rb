@@ -23,6 +23,4 @@
 *.local
 *.gem
 
-# Ruby version file (should be set per environment)
-.ruby-version
-
+/gemfiles/*.lock
