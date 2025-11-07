@@ -17,7 +17,7 @@ ROOT_DIR="$(cd "$(dirname "$0")"/../.. && pwd)"
 cd "$ROOT_DIR"
 
 e "bundle"
-e "bundle exec appraisal install"
+e "bundle exec appraisal generate"
 e "bundle exec standardrb --fix"
 e "bundle exec rbs validate"
 e "bundle exec rspec"
