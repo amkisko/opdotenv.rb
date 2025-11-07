@@ -79,7 +79,7 @@ def ensure_gemfiles_exist
   puts "Generating missing gemfiles for: #{missing.join(', ')}..."
   Dir.chdir(APP_ROOT) do
     missing.each do |appraisal|
-      unless system("bundle exec appraisal install #{appraisal}")
+      unless system("bundle exec appraisal generate #{appraisal}")
         puts "✗ ERROR: Failed to generate gemfile for #{appraisal}"
         return false
       end
