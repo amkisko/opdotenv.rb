@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 1.0.3 (2025-11-07)
+
+- Fix exit code handling in OpClient by using Open3.capture2e instead of IO.popen for reliable process status
+- Improve load_all_fields to filter out empty keys and only include fields from 1Password items
+- Strip whitespace from field labels and treat empty labels (after stripping) as nil
+- Filter out fields with empty or whitespace-only values
+
 ## 1.0.2 (2025-11-05)
 
 - Enhance error handling and security measures across the codebase

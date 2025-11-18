@@ -25,11 +25,23 @@ module Opdotenv
       raw_json = client.item_get(item, vault: vault)
       item_hash = parse_json_safe(raw_json)
 
+      # Only process fields from the 1Password item, filter out empty values
       item_hash["fields"]&.each_with_object({}) do |field, env_data|
-        label = field["label"] || field["id"]
-        next unless label
-        next if field["purpose"] == NOTES_PURPOSE # skip notesPlain when fetching all
-        env_data[label.to_s] = (field["value"] || "").to_s
+        # Only include actual fields from the item
+        next unless field.is_a?(Hash)
+
+        # Strip whitespace from label and treat empty strings as nil
+        label = (field["label"] || field["id"])&.strip
+        next if label.nil? || label.empty?
+
+        # Skip notesPlain when fetching all fields
+        next if field["purpose"] == NOTES_PURPOSE
+
+        # Get the value and filter out empty values
+        value = field["value"]
+        next if value.nil? || (value.is_a?(String) && value.strip.empty?)
+
+        env_data[label.to_s] = value.to_s
       end || {}
     end
 
