@@ -1,4 +1,5 @@
 require "json"
+require "open3"
 
 module Opdotenv
   class OpClient
@@ -71,11 +72,8 @@ module Opdotenv
 
     def capture(args)
       # Use exec-style array to prevent shell injection
-      # IO.popen with array arguments avoids shell interpretation
-      out = IO.popen(args, err: [:child, :out]) do |io|
-        io.read
-      end
-      status = $CHILD_STATUS
+      # Open3.capture2e captures both stdout and stderr, and properly returns exit status
+      out, status = Open3.capture2e(*args)
 
       # For JSON output, try to parse even if exit code is non-zero
       # Some op commands may return non-zero but still output valid JSON
@@ -88,10 +86,10 @@ module Opdotenv
         end
       end
 
-      if status.nil? || !status.success?
+      unless status.success?
         # Never leak command output in error messages for security
         # Extract safe error information without exposing secrets
-        exit_code = status&.exitstatus || "unknown"
+        exit_code = status.exitstatus
         command_name = args.first || "op"
         raise OpError, "Command failed: #{command_name} (exit code: #{exit_code})"
       end

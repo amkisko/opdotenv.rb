@@ -64,13 +64,22 @@ RSpec.describe Opdotenv::Loader do
   end
 
   describe ".load all fields edge cases" do
-    it "handles field with nil value" do
+    it "filters out field with nil value" do
       allow(client).to receive(:item_get).with("Item", vault: "Vault").and_return({
         fields: [{label: "KEY", value: nil}]
       }.to_json)
       env = {}
       data = described_class.load("op://Vault/Item", env: env, client: client)
-      expect(data).to eq({"KEY" => ""})
+      expect(data).to eq({})
+    end
+
+    it "filters out field with empty string value" do
+      allow(client).to receive(:item_get).with("Item", vault: "Vault").and_return({
+        fields: [{label: "EMPTY_KEY", value: ""}, {label: "WHITESPACE_KEY", value: "   "}, {label: "VALID_KEY", value: "value"}]
+      }.to_json)
+      env = {}
+      data = described_class.load("op://Vault/Item", env: env, client: client)
+      expect(data).to eq({"VALID_KEY" => "value"})
     end
 
     it "handles field with numeric value" do
@@ -112,6 +121,20 @@ RSpec.describe Opdotenv::Loader do
       env = {}
       data = described_class.load("op://Vault/Item", env: env, client: client)
       expect(data).to eq({"field-id" => "x"})
+    end
+
+    it "strips whitespace from labels and filters out empty labels" do
+      allow(client).to receive(:item_get).with("Item", vault: "Vault").and_return({
+        fields: [
+          {label: "  KEY1  ", value: "value1"},
+          {label: "   ", value: "value2"},
+          {label: "", value: "value3"},
+          {label: "KEY2", value: "value4"}
+        ]
+      }.to_json)
+      env = {}
+      data = described_class.load("op://Vault/Item", env: env, client: client)
+      expect(data).to eq({"KEY1" => "value1", "KEY2" => "value4"})
     end
   end
 
