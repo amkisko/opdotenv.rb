@@ -350,6 +350,24 @@ bundle exec rbs validate
 bundle exec standardrb --fix
 ```
 
+## Contributing
+
+Bug reports and pull requests are welcome on GitHub at https://github.com/amkisko/opdotenv.rb.
+
+Contribution policy:
+- New features are not necessarily added to the gem
+- Pull request should have test coverage for affected parts
+- Pull request should have changelog entry
+
+Review policy:
+- It might take up to 2 calendar weeks to review and merge critical fixes
+- It might take up to 6 calendar months to review and merge pull request
+- It might take up to 1 calendar year to review an issue
+
+## Security
+
+If you discover a security vulnerability, please report it responsibly. See [SECURITY.md](SECURITY.md) for details.
+
 ## License
 
-MIT
+The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
