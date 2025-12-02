@@ -1,6 +1,6 @@
 # opdotenv
 
-[![Gem Version](https://badge.fury.io/rb/opdotenv.svg?v=1.0.3)](https://badge.fury.io/rb/opdotenv) [![Test Status](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml/badge.svg)](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/amkisko/opdotenv.rb/graph/badge.svg?token=U4FMVZGO8R)](https://codecov.io/gh/amkisko/opdotenv.rb)
+[![Gem Version](https://badge.fury.io/rb/opdotenv.svg?v=1.0.3)](https://badge.fury.io/rb/opdotenv) [![Test Status](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml/badge.svg)](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/amkisko/opdotenv.rb/graph/badge.svg?token=U4FMVZGO8R)](https://codecov.io/gh/amkisko/opdotenv.rb) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=amkisko_opdotenv.rb&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=amkisko_opdotenv.rb)
 
 Load environment variables from 1Password using the `op` CLI or 1Password Connect Server API. Supports dotenv, JSON, and YAML formats.
 
