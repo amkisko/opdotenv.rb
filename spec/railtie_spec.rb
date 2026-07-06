@@ -23,7 +23,7 @@ if defined?(Rails::Railtie)
       expect(Opdotenv::Loader).to receive(:load).with("op://Vault/Item", hash_including(field_name: nil, field_type: nil, env: ENV, overwrite: true))
 
       initializer = described_class.initializers.find { |i| i.name == "opdotenv.load" }
-      expect(initializer).to be
+      expect(initializer).not_to be_nil
       initializer.run(app)
     end
 
