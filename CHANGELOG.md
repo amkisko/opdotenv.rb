@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.0.4 (2026-07-05)
+
+- Move `railties` from runtime to development dependency in gemspec
+- Non-Rails installs no longer pull in the Rails gem tree; Rails apps already provide `railties`
+
 ## 1.0.3 (2025-11-07)
 
 - Fix exit code handling in OpClient by using Open3.capture2e instead of IO.popen for reliable process status

@@ -1,0 +1,13 @@
+spec/anyway_loader_auto_registration_spec.rb
+spec/anyway_loader_spec.rb
+spec/client_factory_spec.rb
+spec/connect_api_client_spec.rb
+spec/exporter_spec.rb
+spec/loader_spec.rb
+spec/op_client_spec.rb
+spec/parsers/dotenv_parser_spec.rb
+spec/parsers/json_parser_spec.rb
+spec/parsers/yaml_parser_spec.rb
+spec/railtie_formats_spec.rb
+spec/railtie_spec.rb
+spec/source_parser_spec.rb
