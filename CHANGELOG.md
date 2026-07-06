@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.0.5 (2026-07-06)
+
+- Improve `OPDOTENV_DEBUG` field summary logging in Anyway Config integration to build messages only when Rails debug logging is active
+- Skip field summary debug output when a 1Password item has no fields
+
 ## 1.0.4 (2026-07-05)
 
 - Move `railties` from runtime to development dependency in gemspec
