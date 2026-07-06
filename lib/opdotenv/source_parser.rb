@@ -19,18 +19,17 @@ module Opdotenv
 
       path = source.to_s
       _, item = parse_op_path(path)
-
-      # Extract item name and potential field name
-      # Handle paths like "op://Vault/Item" or "op://Vault/Item Name/field"
       item_parts = item.split("/")
       item_name = item_parts.first
       field_name = (item_parts.length > 1) ? item_parts[1] : nil
 
-      # First check if field name is provided with extension in the path
+      build_parsed_source(path, item_name, field_name)
+    end
+
+    def build_parsed_source(path, item_name, field_name)
       if field_name
         field_type = FormatInferrer.infer_from_name(field_name)
         {path: path, field_name: field_name, field_type: field_type}
-      # If no field name in path, infer from item name patterns
       elsif (field_type = FormatInferrer.infer_from_name(item_name))
         {path: path, field_name: NOTES_PLAIN_FIELD, field_type: field_type}
       else
@@ -66,6 +65,6 @@ module Opdotenv
       }
     end
 
-    module_function :normalize_hash
+    module_function :normalize_hash, :build_parsed_source
   end
 end

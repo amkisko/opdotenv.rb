@@ -86,28 +86,7 @@ module Opdotenv
       existing = item_by_title_in_vault(vault_id, item)
 
       if existing
-        # Update using PATCH
-        fields_array = fields.map do |k, v|
-          existing_field = existing["fields"]&.find { |f| f["label"] == k.to_s }
-          if existing_field
-            {
-              "op" => "replace",
-              "path" => "/fields/#{existing_field["id"]}/value",
-              "value" => v.to_s
-            }
-          else
-            {
-              "op" => "add",
-              "path" => "/fields",
-              "value" => {
-                "type" => "CONCEALED",
-                "label" => k.to_s,
-                "value" => v.to_s
-              }
-            }
-          end
-        end
-
+        fields_array = build_patch_fields(existing, fields)
         api_request(:patch, "/v1/vaults/#{vault_id}/items/#{existing["id"]}", fields_array)
       else
         # Create new item
@@ -131,6 +110,29 @@ module Opdotenv
     end
 
     private
+
+    def build_patch_fields(existing, fields)
+      fields.map do |key, value|
+        existing_field = existing["fields"]&.find { |field| field["label"] == key.to_s }
+        if existing_field
+          {
+            "op" => "replace",
+            "path" => "/fields/#{existing_field["id"]}/value",
+            "value" => value.to_s
+          }
+        else
+          {
+            "op" => "add",
+            "path" => "/fields",
+            "value" => {
+              "type" => "CONCEALED",
+              "label" => key.to_s,
+              "value" => value.to_s
+            }
+          }
+        end
+      end
+    end
 
     def parse_path(path)
       # op://Vault/Item or connect://Vault/Item

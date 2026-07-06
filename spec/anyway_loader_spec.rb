@@ -92,7 +92,7 @@ RSpec.describe Opdotenv::AnywayLoader::Loader do
 
     expect(registry.entries.map(&:first)).to include(:opdotenv)
     handler = registry.entries.find { |id, _| id == :opdotenv }&.last
-    expect(handler).to eq(Opdotenv::AnywayLoader::Loader)
+    expect(handler).to eq(described_class)
   end
 
   it "invokes Opdotenv::Loader.load with inferred format and returns data with prefix stripped" do
@@ -294,12 +294,16 @@ RSpec.describe Opdotenv::AnywayLoader::Loader do
       }.to_json)
       allow(Opdotenv::ClientFactory).to receive(:create).and_return(client)
 
-      expect(logger).to receive(:debug).with(/Available fields from 1Password/)
-      expect(logger).to receive(:debug).with(/Matched fields for TEST/)
-      expect(logger).to receive(:debug).with(/Unmatched fields/)
-      expect(logger).to receive(:debug).with(/To use these fields/)
+      debug_messages = []
+      allow(logger).to receive(:debug) { |&block| debug_messages << block.call if block }
 
       loader.call(name: "test", env_prefix: "TEST", config_path: nil, opdotenv: {path: "op://Vault/Item"})
+
+      combined = debug_messages.join("\n")
+      expect(combined).to match(/Available fields from 1Password/)
+      expect(combined).to match(/Matched fields for TEST/)
+      expect(combined).to match(/Unmatched fields/)
+      expect(combined).to match(/To use these fields/)
     end
 
     it "logs when no unmatched fields" do
@@ -315,11 +319,15 @@ RSpec.describe Opdotenv::AnywayLoader::Loader do
       }.to_json)
       allow(Opdotenv::ClientFactory).to receive(:create).and_return(client)
 
-      expect(logger).to receive(:debug).with(/Available fields from 1Password/)
-      expect(logger).to receive(:debug).with(/Matched fields for TEST/)
-      expect(logger).not_to receive(:debug).with(/Unmatched fields/)
+      debug_messages = []
+      allow(logger).to receive(:debug) { |&block| debug_messages << block.call if block }
 
       loader.call(name: "test", env_prefix: "TEST", config_path: nil, opdotenv: {path: "op://Vault/Item"})
+
+      combined = debug_messages.join("\n")
+      expect(combined).to match(/Available fields from 1Password/)
+      expect(combined).to match(/Matched fields for TEST/)
+      expect(combined).not_to match(/Unmatched fields/)
     end
 
     it "does not log when OPDOTENV_DEBUG is not set" do
