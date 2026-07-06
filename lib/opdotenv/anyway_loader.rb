@@ -79,26 +79,38 @@ module Opdotenv
       def log_available_fields(original_data, env_prefix, matched_data)
         return unless ENV["OPDOTENV_DEBUG"] == "true"
         return unless defined?(Rails) && Rails.logger
+        return if original_data.keys.empty?
 
         prefix_upper = env_prefix.upcase
         prefix_with_underscore = "#{prefix_upper}_"
-
         available_fields = original_data.keys.map(&:to_s)
         matched_fields = matched_data.keys.map(&:to_s)
+        unmatched = unmatched_fields(available_fields, prefix_upper, prefix_with_underscore)
 
-        # Find fields that were available but didn't match the prefix (case-insensitive)
-        unmatched = available_fields.reject do |field|
+        log_field_summary(available_fields, matched_fields, env_prefix, prefix_with_underscore)
+        log_unmatched_fields(unmatched, prefix_with_underscore) if unmatched.any?
+      end
+
+      def unmatched_fields(available_fields, prefix_upper, prefix_with_underscore)
+        available_fields.reject do |field|
           field_upper = field.to_s.upcase
           field_upper.start_with?(prefix_with_underscore) || field_upper == prefix_upper
         end
+      end
 
-        if available_fields.any?
-          Rails.logger.debug("[opdotenv] Available fields from 1Password: #{available_fields.join(", ")}")
-          Rails.logger.debug("[opdotenv] Matched fields for #{env_prefix} (prefixed with #{prefix_with_underscore}, case-insensitive): #{matched_fields.join(", ")}")
-          if unmatched.any?
-            Rails.logger.debug("[opdotenv] Unmatched fields (must be prefixed with #{prefix_with_underscore}, case-insensitive): #{unmatched.join(", ")}")
-            Rails.logger.debug("[opdotenv] To use these fields, rename them in 1Password to include the #{prefix_with_underscore} prefix")
-          end
+      def log_field_summary(available_fields, matched_fields, env_prefix, prefix_with_underscore)
+        Rails.logger.debug { "[opdotenv] Available fields from 1Password: #{available_fields.join(", ")}" }
+        Rails.logger.debug do
+          "[opdotenv] Matched fields for #{env_prefix} (prefixed with #{prefix_with_underscore}, case-insensitive): #{matched_fields.join(", ")}"
+        end
+      end
+
+      def log_unmatched_fields(unmatched, prefix_with_underscore)
+        Rails.logger.debug do
+          "[opdotenv] Unmatched fields (must be prefixed with #{prefix_with_underscore}, case-insensitive): #{unmatched.join(", ")}"
+        end
+        Rails.logger.debug do
+          "[opdotenv] To use these fields, rename them in 1Password to include the #{prefix_with_underscore} prefix"
         end
       end
     end

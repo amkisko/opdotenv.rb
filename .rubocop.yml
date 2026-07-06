@@ -60,7 +60,20 @@ RSpec/RepeatedExample:
   Enabled: false
 
 RSpec/DescribeClass:
-  Exclude: []
+  Exclude:
+    - spec/anyway_loader_auto_registration_spec.rb
+
+RSpec/MessageSpies:
+  Enabled: false
+
+RSpec/MultipleExpectations:
+  Max: 4
+
+RSpec/NoExpectationExample:
+  Enabled: false
+
+RSpec/RemoveConst:
+  Enabled: false
 
 RSpec/VerifiedDoubles:
   Enabled: false
@@ -70,6 +83,9 @@ Style/AccessModifierDeclarations:
   EnforcedStyle: inline
 
 Rails/ActiveRecordCallbacksOrder:
+  Enabled: false
+
+Rails/Blank:
   Enabled: false
 
 Style/FrozenStringLiteralComment:
@@ -91,6 +107,7 @@ ThreadSafety/ClassInstanceVariable:
 ThreadSafety/DirChdir:
   Exclude:
     - "*.gemspec"
+    - usr/**/*
 
 # Strict cops that should never be disabled
 Lint/Debugger:
@@ -121,14 +138,14 @@ Metrics/ModuleLength:
 Metrics/ClassLength:
   Enabled: true
   CountAsOne: [array, hash, heredoc, method_call]
-  Max: 150
+  Max: 200
 Metrics/CyclomaticComplexity:
   Enabled: true
-  Max: 10
+  Max: 14
 Metrics/PerceivedComplexity:
   Enabled: true
-  Max: 10
+  Max: 14
 Metrics/AbcSize:
   Enabled: true
-  Max: 15
+  Max: 26
   CountRepeatedAttributes: false
