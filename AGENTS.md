@@ -2,7 +2,7 @@
 
 # Agent context
 
-Do not edit managed blocks in `AGENTS.md` or skills under `.agents/`.
+Do not edit managed blocks in `AGENTS.md` or provisioned files under `.agents/`.
 To change shared guidance, update `Prayfile` and run `pray install`.
 
 ## Shared instructions
