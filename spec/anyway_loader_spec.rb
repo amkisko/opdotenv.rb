@@ -300,10 +300,10 @@ RSpec.describe Opdotenv::AnywayLoader::Loader do
       loader.call(name: "test", env_prefix: "TEST", config_path: nil, opdotenv: {path: "op://Vault/Item"})
 
       combined = debug_messages.join("\n")
-      expect(combined).to match(/Available fields from 1Password/)
-      expect(combined).to match(/Matched fields for TEST/)
-      expect(combined).to match(/Unmatched fields/)
-      expect(combined).to match(/To use these fields/)
+      expect(combined).to include("Available fields from 1Password")
+      expect(combined).to include("Matched fields for TEST")
+      expect(combined).to include("Unmatched fields")
+      expect(combined).to include("To use these fields")
     end
 
     it "logs when no unmatched fields" do
@@ -325,9 +325,9 @@ RSpec.describe Opdotenv::AnywayLoader::Loader do
       loader.call(name: "test", env_prefix: "TEST", config_path: nil, opdotenv: {path: "op://Vault/Item"})
 
       combined = debug_messages.join("\n")
-      expect(combined).to match(/Available fields from 1Password/)
-      expect(combined).to match(/Matched fields for TEST/)
-      expect(combined).not_to match(/Unmatched fields/)
+      expect(combined).to include("Available fields from 1Password")
+      expect(combined).to include("Matched fields for TEST")
+      expect(combined).not_to include("Unmatched fields")
     end
 
     it "does not log when OPDOTENV_DEBUG is not set" do
