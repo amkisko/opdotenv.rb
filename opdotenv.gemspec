@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   spec.executables = ["opdotenv"]
   spec.require_paths = ["lib"]
 
-  spec.required_ruby_version = ">= 2.7"
+  spec.required_ruby_version = ">= 3.4"
 
   spec.metadata = {
     "source_code_uri" => "https://github.com/amkisko/opdotenv.rb",
@@ -24,7 +24,7 @@ Gem::Specification.new do |spec|
     "bug_tracker_uri" => "https://github.com/amkisko/opdotenv.rb/issues"
   }
 
-  spec.add_development_dependency "railties", ">= 6.0", "< 9.0"
+  spec.add_development_dependency "railties", ">= 7.0", "< 9.0"
   spec.add_development_dependency "rake", "~> 13"
   spec.add_development_dependency "rspec", "~> 3"
   spec.add_development_dependency "polyrun", ">= 2.2.0"

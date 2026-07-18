@@ -1,6 +1,6 @@
 # opdotenv
 
-[![Gem Version](https://badge.fury.io/rb/opdotenv.svg?v=1.0.3)](https://badge.fury.io/rb/opdotenv) [![Test Status](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml/badge.svg)](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/amkisko/opdotenv.rb/graph/badge.svg?token=U4FMVZGO8R)](https://codecov.io/gh/amkisko/opdotenv.rb) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=amkisko_opdotenv.rb&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=amkisko_opdotenv.rb)
+[![Gem Version](https://badge.fury.io/rb/opdotenv.svg?v=1.0.3)](https://badge.fury.io/rb/opdotenv) [![Test Status](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml/badge.svg)](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/amkisko/opdotenv.rb/graph/badge.svg?token=U4FMVZGO8R)](https://app.codecov.io/github/amkisko/opdotenv.rb) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=amkisko_opdotenv.rb&metric=alert_status)](https://sonarcloud.io/project/overview?id=amkisko_opdotenv.rb)
 
 Load environment variables from 1Password using the `op` CLI or 1Password Connect Server API. Supports dotenv, JSON, and YAML formats.
 
@@ -367,6 +367,19 @@ Review policy:
 ## Security
 
 If you discover a security vulnerability, please report it responsibly. See [SECURITY.md](SECURITY.md) for details.
+
+## Links
+
+- [GitHub](https://github.com/amkisko/opdotenv.rb)
+- [GitLab](https://gitlab.com/amkisko/opdotenv.rb)
+- [RubyGems](https://rubygems.org/gems/opdotenv)
+- [Versions Atom](https://rubygems.org/gems/opdotenv/versions.atom) (feed id `9869611634128`)
+- [libraries.io](https://libraries.io/rubygems/opdotenv)
+- [Deps.dev](https://deps.dev/rubygems/opdotenv)
+- [SonarCloud](https://sonarcloud.io/project/overview?id=amkisko_opdotenv.rb)
+- [Snyk](https://snyk.io/test/github/amkisko/opdotenv.rb)
+- [Codecov](https://app.codecov.io/github/amkisko/opdotenv.rb)
+- [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/amkisko/opdotenv.rb)
 
 ## License
 
