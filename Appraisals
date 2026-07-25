@@ -1,5 +1,3 @@
-
-
 appraise "rails72" do
   gem "railties", "~> 7.2"
 end
