@@ -15,25 +15,24 @@ unless defined?(::Anyway::Loaders::Base)
 end
 
 RSpec.describe "Opdotenv::AnywayLoader auto-registration" do
-  # This test needs to run in isolation because it modifies global state
-  # and reloads the anyway_loader file
-
   let(:loader_file) { File.expand_path("../../lib/opdotenv/anyway_loader.rb", __FILE__) }
 
-  before do
-    # Remove the module from $LOADED_FEATURES so we can reload it
-    $LOADED_FEATURES.delete_if { |f| f.include?("opdotenv/anyway_loader") }
-    # Also remove from Opdotenv module if it exists
-    if Opdotenv.const_defined?(:AnywayLoader)
-      Opdotenv.send(:remove_const, :AnywayLoader)
-    end
+  around do |example|
+    loaded_features = $LOADED_FEATURES.grep(/opdotenv\/anyway_loader/)
+    original_loader = Opdotenv::AnywayLoader if Opdotenv.const_defined?(:AnywayLoader, false)
+    $LOADED_FEATURES.delete_if { |feature| feature.include?("opdotenv/anyway_loader") }
+    Opdotenv.send(:remove_const, :AnywayLoader) if original_loader
+
+    example.run
+  ensure
+    Opdotenv.send(:remove_const, :AnywayLoader) if Opdotenv.const_defined?(:AnywayLoader, false)
+    Opdotenv.const_set(:AnywayLoader, original_loader) if original_loader
+    $LOADED_FEATURES.concat(loaded_features - $LOADED_FEATURES)
   end
 
   it "silently skips registration when Anyway.loaders is not available" do
-    # Mock Anyway to not respond to loaders
     allow(::Anyway).to receive(:respond_to?).with(:loaders).and_return(false)
 
-    # Reload the file - should not raise
     expect {
       load loader_file
     }.not_to raise_error
@@ -49,7 +48,6 @@ RSpec.describe "Opdotenv::AnywayLoader auto-registration" do
     end
 
     it "warns when registration fails" do
-      # Create a registry that raises an error
       registry = Class.new do
         def append(id, handler)
           raise StandardError.new("Registration failed")
@@ -58,7 +56,6 @@ RSpec.describe "Opdotenv::AnywayLoader auto-registration" do
 
       allow(::Anyway).to receive(:loaders).and_return(registry)
 
-      # Reload the file - should warn but not raise
       expect {
         load loader_file
       }.to output(/Failed to register Anyway loader/).to_stderr
