@@ -201,9 +201,7 @@ RSpec.describe Opdotenv::AnywayLoader::Loader do
   end
 
   it "returns data early when Anyway::Env is not defined" do
-    # Temporarily hide Anyway::Env
-    original_env = ::Anyway::Env if defined?(::Anyway::Env)
-    ::Anyway.send(:remove_const, :Env) if defined?(::Anyway::Env)
+    hide_const("Anyway::Env")
 
     loader = described_class.new(local: true)
     client = instance_double(Opdotenv::OpClient)
@@ -212,9 +210,6 @@ RSpec.describe Opdotenv::AnywayLoader::Loader do
 
     data = loader.call(name: "app", env_prefix: "APP", config_path: nil, opdotenv: {path: "op://Vault/.env.development"})
     expect(data).to eq({"APP_KEY" => "value"})
-
-    # Restore
-    ::Anyway.const_set(:Env, original_env) if original_env
   end
 
   it "handles normalize_keys with prefix matching" do
