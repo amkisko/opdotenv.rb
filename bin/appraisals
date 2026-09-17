@@ -1,12 +1,12 @@
 #!/usr/bin/env ruby
 
-# Run appraisal tests locally
+# Run appraisal tests locally (default: Polyrun parallel-rspec)
 # Usage:
-#   bin/appraisals                          # Run tests for all appraisals
-#   bin/appraisals rails-6.0                 # Run tests for a specific appraisal
-#   bin/appraisals rails-6.0 rails-7.0       # Run tests for multiple appraisals
-#   bin/appraisals rails-6.0 rspec -fd      # Run rspec with flags for an appraisal
-#   bin/appraisals rails-6.0 rake spec      # Run rake spec for an appraisal
+#   bin/appraisals                          # parallel-rspec for all appraisals
+#   bin/appraisals rails72                  # parallel-rspec for a specific appraisal
+#   bin/appraisals rails72 rails8ruby34     # parallel-rspec for multiple appraisals
+#   bin/appraisals rails72 rspec -fd        # serial RSpec with flags
+#   bin/appraisals rails72 rake spec        # Run rake spec for an appraisal
 
 require "bundler/setup"
 
@@ -24,16 +24,17 @@ AVAILABLE_APPRAISALS = File.read(APPRAISALS_FILE, encoding: "UTF-8")
   .flatten
   .freeze
 
+DEFAULT_POLYRUN_CMD = ["polyrun", "parallel-rspec", "--workers", "5", "--merge-failures"].freeze
+
 def usage
   puts <<~USAGE
     Usage: bin/appraisals [appraisal_name...] [command]
 
     Examples:
-      bin/appraisals                            # Run rspec for all appraisals
-      bin/appraisals rails-6.0                  # Run rspec for rails-6.0
-      bin/appraisals rails-7.0                  # Run rspec for rails-7.0
-      bin/appraisals rails-8.0                  # Run rspec for rails-8.0
-      bin/appraisals rails-6.0 rspec -fd        # Run rspec with flags
+      bin/appraisals                            # Run polyrun parallel-rspec for all appraisals
+      bin/appraisals rails72                    # parallel-rspec for rails72
+      bin/appraisals rails8ruby34               # parallel-rspec for rails8ruby34
+      bin/appraisals rails72 rspec              # serial RSpec for rails72
 
     Available appraisals: #{AVAILABLE_APPRAISALS.join(', ')}
   USAGE
@@ -47,7 +48,7 @@ def parse_args
     usage
   end
 
-  return [AVAILABLE_APPRAISALS, ["rspec"]] if args.empty?
+  return [AVAILABLE_APPRAISALS, DEFAULT_POLYRUN_CMD.dup] if args.empty?
 
   appraisals = []
   command = []
@@ -61,7 +62,7 @@ def parse_args
   end
 
   appraisals = AVAILABLE_APPRAISALS if appraisals.empty?
-  command = ["rspec"] if command.empty?
+  command = DEFAULT_POLYRUN_CMD.dup if command.empty?
 
   [appraisals, command]
 end
