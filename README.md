@@ -345,7 +345,7 @@ All secret data flows through these code paths. No secrets are persisted to disk
 
 ```bash
 bundle install
-bundle exec rspec
+bundle exec polyrun parallel-rspec --workers 5 --merge-failures
 bundle exec rbs validate
 bundle exec standardrb --fix
 ```
