@@ -138,7 +138,7 @@ Metrics/ModuleLength:
 Metrics/ClassLength:
   Enabled: true
   CountAsOne: [array, hash, heredoc, method_call]
-  Max: 200
+  Max: 220
 Metrics/CyclomaticComplexity:
   Enabled: true
   Max: 14

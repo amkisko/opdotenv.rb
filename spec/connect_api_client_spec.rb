@@ -3,7 +3,12 @@ require "spec_helper"
 RSpec.describe Opdotenv::ConnectApiClient do
   let(:base_url) { "http://localhost:8080" }
   let(:access_token) { "test-token" }
-  let(:client) { described_class.new(base_url: base_url, access_token: access_token) }
+  let(:client) { described_class.new(base_url: base_url, access_token: access_token, env: {}) }
+
+  def title_filter_path(vault_id, title)
+    filter = URI.encode_www_form_component(%(title eq "#{title}"))
+    "/v1/vaults/#{vault_id}/items?filter=#{filter}"
+  end
 
   describe "#read" do
     it "reads notesPlain from secure note" do
@@ -45,11 +50,31 @@ RSpec.describe Opdotenv::ConnectApiClient do
       create_response = {"id" => "new-item-uuid", "title" => "NewNote"}
 
       allow(client).to receive(:vault_name_to_id).with("TestVault").and_return("vault-uuid")
+      allow(client).to receive(:item_by_title_in_vault).with("vault-uuid", "NewNote").and_return(nil)
       allow(client).to receive(:api_request).with(:post, "/v1/vaults/vault-uuid/items", hash_including(
         "category" => "SECURE_NOTE",
         "title" => "NewNote",
         "fields" => [{"purpose" => "NOTES", "value" => "content"}]
       )).and_return(create_response)
+
+      result = client.item_create_note(vault: "TestVault", title: "NewNote", notes: "content")
+      expect(result).to include("NewNote")
+    end
+
+    it "updates an existing secure note with PATCH" do
+      existing = {
+        "id" => "note-uuid",
+        "title" => "NewNote",
+        "fields" => [{"id" => "notes-id", "purpose" => "NOTES", "value" => "old"}]
+      }
+
+      allow(client).to receive(:vault_name_to_id).with("TestVault").and_return("vault-uuid")
+      allow(client).to receive(:item_by_title_in_vault).with("vault-uuid", "NewNote").and_return(existing)
+      allow(client).to receive(:api_request).with(
+        :patch,
+        "/v1/vaults/vault-uuid/items/note-uuid",
+        [{"op" => "replace", "path" => "/fields/notes-id/value", "value" => "content"}]
+      ).and_return(existing.merge("title" => "NewNote"))
 
       result = client.item_create_note(vault: "TestVault", title: "NewNote", notes: "content")
       expect(result).to include("NewNote")
@@ -238,8 +263,8 @@ RSpec.describe Opdotenv::ConnectApiClient do
       expect(result).to eq({})
     end
 
-    it "handles error responses with JSON error messages" do
-      error_response = instance_double(Net::HTTPResponse, code: "400", body: '{"message":"Bad request"}')
+    it "does not expose values from JSON error messages" do
+      error_response = instance_double(Net::HTTPResponse, code: "400", body: '{"message":"synthetic-secret"}')
       request = instance_double(Net::HTTP::Post)
       allow(Net::HTTP::Post).to receive(:new).and_return(request)
       allow(request).to receive(:[]=)
@@ -250,7 +275,7 @@ RSpec.describe Opdotenv::ConnectApiClient do
 
       expect {
         client.send(:api_request, :post, "/v1/vaults/test/items", {})
-      }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /Bad request/)
+      }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /API error \(400\): Request failed/)
     end
 
     it "handles 400 with plain text error" do
@@ -266,6 +291,25 @@ RSpec.describe Opdotenv::ConnectApiClient do
       expect {
         client.send(:api_request, :get, "/v1/vaults")
       }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /API error \(400\): Request failed/)
+    end
+
+    it "accepts a created response" do
+      allow(response).to receive(:code).and_return("201")
+      expect(client.send(:api_request, :post, "/v1/vaults/test/items", {})).to eq("test" => "data")
+    end
+
+    it "does not repeat writes after a timeout" do
+      allow(http).to receive(:request).and_raise(Net::ReadTimeout)
+      expect { client.send(:api_request, :post, "/v1/vaults/test/items", {}) }.to raise_error(Net::ReadTimeout)
+      expect(http).to have_received(:request).once
+    end
+
+    it "raises ConnectApiError for non-JSON success bodies" do
+      allow(response).to receive(:code).and_return("200")
+      allow(response).to receive(:body).and_return("<html>ok</html>")
+      expect {
+        client.send(:api_request, :get, "/v1/vaults")
+      }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /API error \(200\): Invalid JSON response/)
     end
 
     it "handles 200 with empty body" do
@@ -370,7 +414,7 @@ RSpec.describe Opdotenv::ConnectApiClient do
       allow(client).to receive(:api_request).with(:get, "/v1/vaults").and_return([
         {"id" => "v1", "name" => "TestVault"}
       ])
-      allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items").and_return([])
+      allow(client).to receive(:api_request).with(:get, title_filter_path("v1", "NotFound")).and_return([])
 
       expect {
         client.send(:get_item, "TestVault", "NotFound")
@@ -383,20 +427,20 @@ RSpec.describe Opdotenv::ConnectApiClient do
       allow(client).to receive(:api_request).with(:get, "/v1/vaults").and_return([
         {"id" => "v1", "name" => "TestVault"}
       ])
-      allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items").and_return([item_summary])
+      allow(client).to receive(:api_request).with(:get, title_filter_path("v1", "Item")).and_return([item_summary])
       allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items/i1").and_return(item_full)
 
       result = client.send(:get_item, "TestVault", "Item")
       expect(result).to eq(item_full)
       # Verify the full item fetch was called (line 168)
-      expect(client).to have_received(:api_request).with(:get, "/v1/vaults/v1/items/i1").at_least(:once)
+      expect(client).to have_received(:api_request).with(:get, "/v1/vaults/v1/items/i1").once
     end
   end
 
   describe "#item_by_title_in_vault" do
     it "returns item when found but has no id field" do
       item_without_id = {"title" => "Item"}
-      allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items").and_return([item_without_id])
+      allow(client).to receive(:api_request).with(:get, title_filter_path("v1", "Item")).and_return([item_without_id])
 
       result = client.send(:item_by_title_in_vault, "v1", "Item")
       expect(result).to eq(item_without_id)
@@ -405,7 +449,7 @@ RSpec.describe Opdotenv::ConnectApiClient do
     it "fetches full item details when item has id" do
       item_summary = {"id" => "i1", "title" => "Item"}
       item_full = {"id" => "i1", "title" => "Item", "fields" => []}
-      allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items").and_return([item_summary])
+      allow(client).to receive(:api_request).with(:get, title_filter_path("v1", "Item")).and_return([item_summary])
       allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items/i1").and_return(item_full)
 
       result = client.send(:item_by_title_in_vault, "v1", "Item")
@@ -454,7 +498,7 @@ RSpec.describe Opdotenv::ConnectApiClient do
       allow(client).to receive(:api_request).with(:get, "/v1/vaults").and_return([
         {"id" => "v1", "name" => "One"}, {"id" => "v2", "name" => "Two"}
       ])
-      allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items").and_return([
+      allow(client).to receive(:api_request).with(:get, title_filter_path("v1", "Item")).and_return([
         {"id" => "i1", "title" => "Item"}
       ])
       allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items/i1").and_return({"id" => "i1", "title" => "Item", "fields" => []})
@@ -468,7 +512,7 @@ RSpec.describe Opdotenv::ConnectApiClient do
       allow(client).to receive(:api_request).with(:get, "/v1/vaults").and_return([
         {"id" => "v1", "name" => "Target"}
       ])
-      allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items").and_return([
+      allow(client).to receive(:api_request).with(:get, title_filter_path("v1", "Cfg")).and_return([
         {"id" => "i2", "title" => "Cfg"}
       ])
       allow(client).to receive(:api_request).with(:get, "/v1/vaults/v1/items/i2").and_return({"id" => "i2", "title" => "Cfg", "fields" => []})
@@ -522,7 +566,7 @@ RSpec.describe Opdotenv::ConnectApiClient do
     end
 
     it "retries once on timeout then succeeds" do
-      request = instance_double(Net::HTTP::Get)
+      request = Net::HTTP::Get.new("/v1/vaults")
       allow(Net::HTTP::Get).to receive(:new).and_return(request)
       allow(request).to receive(:[]=)
       uri = URI.parse("http://localhost:8080/v1/vaults")
@@ -538,7 +582,7 @@ RSpec.describe Opdotenv::ConnectApiClient do
     end
 
     it "raises after second timeout" do
-      request = instance_double(Net::HTTP::Get)
+      request = Net::HTTP::Get.new("/v1/vaults")
       allow(Net::HTTP::Get).to receive(:new).and_return(request)
       allow(request).to receive(:[]=)
       uri = URI.parse("http://localhost:8080/v1/vaults")
@@ -552,7 +596,7 @@ RSpec.describe Opdotenv::ConnectApiClient do
     end
 
     it "retries once on ECONNRESET then succeeds" do
-      request = instance_double(Net::HTTP::Get)
+      request = Net::HTTP::Get.new("/v1/vaults")
       allow(Net::HTTP::Get).to receive(:new).and_return(request)
       allow(request).to receive(:[]=)
       uri = URI.parse("http://localhost:8080/v1/vaults")

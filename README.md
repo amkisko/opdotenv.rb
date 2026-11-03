@@ -1,14 +1,8 @@
 # opdotenv
 
-[![Gem Version](https://badge.fury.io/rb/opdotenv.svg?v=1.0.3)](https://badge.fury.io/rb/opdotenv) [![Test Status](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml/badge.svg)](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/amkisko/opdotenv.rb/graph/badge.svg?token=U4FMVZGO8R)](https://app.codecov.io/github/amkisko/opdotenv.rb) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=amkisko_opdotenv.rb&metric=alert_status)](https://sonarcloud.io/project/overview?id=amkisko_opdotenv.rb)
+[![Gem Version](https://badge.fury.io/rb/opdotenv.svg?v=1.0.6)](https://badge.fury.io/rb/opdotenv) [![Test Status](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml/badge.svg)](https://github.com/amkisko/opdotenv.rb/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/amkisko/opdotenv.rb/graph/badge.svg?token=U4FMVZGO8R)](https://app.codecov.io/github/amkisko/opdotenv.rb) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=amkisko_opdotenv.rb&metric=alert_status)](https://sonarcloud.io/project/overview?id=amkisko_opdotenv.rb)
 
 Load environment variables from 1Password using the `op` CLI or 1Password Connect Server API. Supports dotenv, JSON, and YAML formats.
-
-Sponsored by [Kisko Labs](https://www.kiskolabs.com).
-
-<a href="https://www.kiskolabs.com">
-  <img src="kisko.svg" width="200" alt="Sponsored by Kisko Labs" />
-</a>
 
 ## Installation
 
@@ -26,7 +20,7 @@ Choose one:
   - You can configure a custom path via `OP_CLI_PATH` or `OPDOTENV_CLI_PATH` environment variables, or via Rails config (see below)
 - **1Password Connect Server** - set `OP_CONNECT_URL` and `OP_CONNECT_TOKEN` environment variables
 
-Ruby 2.7+ supported.
+Ruby 3.4+ required.
 
 ## Rails
 
@@ -42,16 +36,7 @@ Rails.application.configure do
 end
 ```
 
-Format is automatically inferred from item name or field name:
-- `.env.*` → dotenv format
-- `*.json` → JSON format
-- `*.yaml` or `*.yml` → YAML format
-- Other items → load all fields without parsing
-
-You can also specify the field name with extension in the path:
-- `op://Vault/Item Name/config.json` → uses field `config.json` as JSON
-- `op://Vault/Item Name/production.json` → uses field `production.json` as JSON
-- `op://Vault/Item Name/.env.development` → uses field `.env.development` as dotenv
+Format is inferred from the item or field basename (see [Supported formats](#supported-formats)). Field names with extensions work in the path, for example `op://Vault/Item Name/config.json`.
 
 ### 1Password Connect
 
@@ -135,16 +120,15 @@ class DatabaseConfig < Anyway::Config
 end
 ```
 
-### Conditional Loading (Recommended for Security)
+### Conditional loading
 
-For better security, only load from 1Password in development/test environments:
+Load from 1Password only in local or development environments:
 
 ```ruby
 class TestConfig < Anyway::Config
   config_name :test
   attr_config :enabled, :sample
 
-  # Only load from 1Password in local/development environments
   if Rails.env.local?
     loader_options opdotenv: {
       path: "op://Employee/.env.test"
@@ -153,7 +137,7 @@ class TestConfig < Anyway::Config
 end
 ```
 
-This ensures that production environments won't attempt to load secrets from 1Password, aligning with the [production recommendations](#environment-recommendation).
+See [Environment recommendation](#environment-recommendation).
 
 ### Loading All Fields from an Item
 
@@ -204,6 +188,8 @@ Dotenv.load(".env", ".env.development")
 
 ## Export to 1Password
 
+Use dedicated configuration items for exports through the `op` CLI. Export values are sent through standard input to keep them out of process arguments. Updating an existing item uses a JSON template and does not support items containing passkeys: 1Password warns that template updates overwrite passkeys. Do not export into a login item that contains a passkey. See the [1Password item edit documentation](https://www.1password.dev/cli/reference/management-commands/item#edit-an-item-using-a-template).
+
 ### CLI
 
 ```bash
@@ -235,50 +221,33 @@ Opdotenv::Exporter.export(
 
 ## Supported formats
 
-Format is automatically inferred from item name or field name:
-- `.env.*` → dotenv format (`KEY=VALUE`)
-- `*.json` → JSON format (nested structures flattened with underscores)
-- `*.yaml` or `*.yml` → YAML format (nested structures flattened with underscores)
-- Other items → load all fields without parsing
+Format is inferred from the item or field basename:
+- `.env` or `.env.*`: dotenv (`KEY=VALUE`)
+- `*.json`: JSON (nested keys flattened with underscores)
+- `*.yaml` or `*.yml`: YAML (nested keys flattened with underscores)
+- Other items: load all fields without parsing
 
-Field names can be specified with extensions in the path:
-- `op://Vault/Item Name/config.json` → loads field `config.json` as JSON
-- `op://Vault/Item Name/production.json` → loads field `production.json` as JSON
-- `op://Vault/Item Name/.env.development` → loads field `.env.development` as dotenv
-
-For advanced usage, you can explicitly specify `field_name` and `field_type` in the API.
+Field names with extensions work in the path, for example `op://Vault/Item Name/config.json`. Callers can also pass `field_name` and `field_type` to the API.
 
 ## Security
 
-### Environment Recommendation
+### Environment recommendation
 
-**⚠️ This gem is recommended for development and test environments only.**
+Use this gem in development and test. For production, prefer the secret store that matches the host:
 
-For production environments, we recommend using dedicated secret management solutions that integrate with your infrastructure:
+- **Kubernetes**: [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) or [External Secrets Operator](https://external-secrets.io/) with AWS Secrets Manager, HashiCorp Vault, or Azure Key Vault
+- **AWS**: [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) or [AWS Systems Manager Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html)
+- **Azure**: [Azure Key Vault](https://azure.microsoft.com/en-us/products/key-vault)
+- **GCP**: [Google Secret Manager](https://cloud.google.com/secret-manager)
 
-- **Kubernetes**: Use [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) or [External Secrets Operator](https://external-secrets.io/) with providers like AWS Secrets Manager, HashiCorp Vault, or Azure Key Vault
-- **AWS**: Use [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) or [AWS Systems Manager Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html)
-- **Azure**: Use [Azure Key Vault](https://azure.microsoft.com/en-us/products/key-vault)
-- **GCP**: Use [Google Secret Manager](https://cloud.google.com/secret-manager)
+Provision through infrastructure tools such as Helm, Terraform, or Bicep when that matches the host.
 
-Provision secrets through infrastructure-as-code tools:
-- **Helm** (Kubernetes): Use `helm secrets` or external secrets operator
-- **Terraform**: Use `aws_secretsmanager_secret`, `azurerm_key_vault_secret`, or `google_secret_manager_secret`
-- **Bicep** (Azure): Use `Microsoft.KeyVault/vaults` resources
+### Security considerations
 
-These solutions provide:
-- Better audit trails and access controls
-- Integration with IAM/RBAC systems
-- Automatic secret rotation
-- Compliance with security standards
-- No dependency on external CLI tools or API servers
-
-### Security Considerations
-
-- **CLI mode**: Secrets fetched via authenticated `op` CLI session.
-- **Connect API mode**: Secrets fetched via HTTPS. Ensure tokens are secure.
-- The library does not persist secrets in memory or on disk.
-- Always verify 1Password CLI or Connect server is up to date and authenticated.
+- **CLI mode**: Secrets fetched via an authenticated `op` CLI session.
+- **Connect API mode**: Secrets fetched via HTTPS. Keep tokens out of logs and process arguments.
+- The library does not persist secrets in memory beyond the load, or on disk.
+- Keep the 1Password CLI or Connect server current and authenticated.
 
 ### Code Locations for Security Review
 
@@ -289,7 +258,7 @@ For security-sensitive applications, developers should review where this gem rea
 - **`lib/opdotenv/op_client.rb`**:
   - `read(path)` - Executes `op read` command to fetch a single field value
   - `item_get(item, vault:)` - Executes `op item get` command to fetch all item data as JSON
-  - `capture(args)` - Executes shell commands via `IO.popen` (array arguments, no shell interpretation)
+  - `capture(args)` - Runs the CLI via `Open3.capture2e` (array arguments, optional stdin)
 
 #### Reading Secrets (ConnectApiClient - API mode)
 
@@ -297,7 +266,7 @@ For security-sensitive applications, developers should review where this gem rea
   - `read(path)` - Makes HTTP GET request to fetch field or notesPlain content
   - `item_get(item_title, vault:)` - Searches and fetches item data via API
   - `get_item(vault_name, item_title)` - Fetches full item details including all fields
-  - `item_by_title_in_vault(vault_id, item_title)` - Lists items and fetches by title
+  - `item_by_title_in_vault(vault_id, item_title)` - Filters items by title and fetches full details
   - `list_vaults()` - Lists all accessible vaults (uses `api_request(:get, "/v1/vaults")`)
   - `vault_name_to_id(vault_name)` - Resolves vault names to IDs (cached)
   - `api_request(method, path, body)` - All HTTP requests go through this method
@@ -330,14 +299,14 @@ For security-sensitive applications, developers should review where this gem rea
 - **`lib/opdotenv/parsers/json_parser.rb`** - Parses and flattens JSON structures
 - **`lib/opdotenv/parsers/yaml_parser.rb`** - Parses YAML (safe_load with aliases: false)
 
-#### Data Flow
+#### Data flow
 
-1. **Configuration** → Rails config or direct API calls
-2. **Path Parsing** → `SourceParser.parse()` extracts vault/item/field from path
-3. **Client Selection** → `ClientFactory.create()` chooses CLI or API client
-4. **Secret Fetching** → Client reads from 1Password (CLI command or HTTP request)
-5. **Parsing** → Format-specific parser converts to key-value pairs
-6. **Environment Merge** → Secrets merged into `ENV` or provided hash
+1. **Configuration**: Rails config or direct API calls
+2. **Path parsing**: `SourceParser.parse()` extracts vault/item/field from path
+3. **Client selection**: `ClientFactory.create()` chooses CLI or API client
+4. **Secret fetching**: Client reads from 1Password (CLI command or HTTP request)
+5. **Parsing**: Format-specific parser converts to key-value pairs
+6. **Environment merge**: Secrets merged into `ENV` or provided hash
 
 All secret data flows through these code paths. No secrets are persisted to disk or logged (except explicit error messages).
 
@@ -384,3 +353,11 @@ If you discover a security vulnerability, please report it responsibly. See [SEC
 ## License
 
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+
+## Sponsors
+
+Sponsored by [Kisko Labs](https://www.kiskolabs.com).
+
+<a href="https://www.kiskolabs.com">
+  <img src="kisko.svg" width="200" alt="Sponsored by Kisko Labs" />
+</a>

@@ -27,33 +27,48 @@ module Opdotenv
     end
 
     def item_create_note(vault:, title:, notes:)
-      # Create a Secure Note with given title and notesPlain
-      # Use shell escaping to prevent injection
-      args = [
-        @cli_path, "item", "create",
-        "--category", SECURE_NOTE_CATEGORY,
-        "--title", title,
-        "--vault", vault,
-        "#{NOTES_PLAIN_FIELD}=#{notes}"
-      ]
-      capture(args)
+      notes_field = {"id" => NOTES_PLAIN_FIELD, "type" => "STRING", "purpose" => "NOTES", "value" => notes}
+      if item_exists?(title, vault: vault)
+        payload = JSON.parse(item_get(title, vault: vault))
+        existing = payload["fields"]&.find { |field|
+          field["id"] == NOTES_PLAIN_FIELD || field["purpose"] == "NOTES" || field["label"] == NOTES_PLAIN_FIELD
+        }
+        if existing
+          existing["value"] = notes
+        else
+          payload["fields"] ||= []
+          payload["fields"] << notes_field
+        end
+        capture([@cli_path, "item", "edit", title, "--vault", vault], stdin_data: JSON.generate(payload))
+      else
+        args = [
+          @cli_path, "item", "create",
+          "--category", SECURE_NOTE_CATEGORY,
+          "--title", title,
+          "--vault", vault,
+          "-"
+        ]
+        capture(args, stdin_data: JSON.generate({"fields" => [notes_field]}))
+      end
     end
 
     def item_create_or_update_fields(vault:, item:, fields: {})
       exists = item_exists?(item, vault: vault)
-      if exists
-        fields.each do |k, v|
-          # Use shell escaping to prevent injection
-          field_arg = "#{k}=#{v}"
-          capture([@cli_path, "item", "edit", item, "--vault", vault, "--set", field_arg])
+      payload = exists ? JSON.parse(item_get(item, vault: vault)) : {"category" => LOGIN_CATEGORY, "fields" => []}
+      fields.each do |key, value|
+        field = payload["fields"].find { |entry| entry["label"] == key.to_s || entry["id"] == key.to_s }
+        if field
+          field["value"] = value.to_s
+        else
+          payload["fields"] << {"type" => "CONCEALED", "label" => key.to_s, "value" => value.to_s}
         end
-      else
-        args = [@cli_path, "item", "create", "--title", item, "--vault", vault]
-        fields.each do |k, v|
-          args += ["--set", "#{k}=#{v}"]
-        end
-        capture(args)
       end
+      args = if exists
+        [@cli_path, "item", "edit", item, "--vault", vault]
+      else
+        [@cli_path, "item", "create", "--title", item, "--vault", vault, "-"]
+      end
+      capture(args, stdin_data: JSON.generate(payload))
     end
 
     private
@@ -70,10 +85,10 @@ module Opdotenv
       raise ArgumentError, "Invalid path format: #{path.inspect}. Must start with 'op://'"
     end
 
-    def capture(args)
+    def capture(args, **options)
       # Use exec-style array to prevent shell injection
       # Open3.capture2e captures both stdout and stderr, and properly returns exit status
-      out, status = Open3.capture2e(*args)
+      out, status = Open3.capture2e(*args, **options)
 
       # For JSON output, try to parse even if exit code is non-zero
       # Some op commands may return non-zero but still output valid JSON

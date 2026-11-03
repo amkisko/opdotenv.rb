@@ -18,27 +18,19 @@ module Opdotenv
       @env = env
     end
 
-    # Parse op:// style path or connect:// style path
-    # op://Vault/Item -> {vault: "Vault", item: "Item", field: nil}
-    # op://Vault/Item/notesPlain -> {vault: "Vault", item: "Item", field: "notesPlain"}
-    # op://Vault/Item/Section/Field -> {vault: "Vault", item: "Item", field: "Field"}
     def read(path)
       parsed = parse_path(path)
       item = get_item(parsed[:vault], parsed[:item])
-
       if parsed[:field]
-        # Read specific field
         field = find_field(item, parsed[:field])
         field ? field["value"] : ""
       else
-        # Read notesPlain for secure notes
         notes_field = item["fields"]&.find { |f| f["purpose"] == NOTES_PURPOSE || f["label"] == NOTES_PLAIN_FIELD }
         notes_field ? notes_field["value"] : ""
       end
     end
 
     def item_get(item_title, vault: nil)
-      # If vault not provided, search all vaults (requires listing vaults)
       if vault.nil?
         item = find_item_in_all_vaults(item_title)
         raise ConnectApiError, "Item '#{item_title}' not found" unless item
@@ -62,88 +54,61 @@ module Opdotenv
 
     def item_create_note(vault:, title:, notes:)
       vault_id = vault_name_to_id(vault)
-
-      payload = {
-        "vault" => {"id" => vault_id},
-        "title" => title,
-        "category" => SECURE_NOTE_CATEGORY,
-        "fields" => [
-          {
-            "purpose" => NOTES_PURPOSE,
-            "value" => notes
-          }
-        ]
-      }
-
-      response = api_request(:post, "/v1/vaults/#{vault_id}/items", payload)
+      existing = item_by_title_in_vault(vault_id, title)
+      response = if existing
+        api_request(:patch, "/v1/vaults/#{vault_id}/items/#{existing["id"]}", notes_patch_ops(existing, notes))
+      else
+        api_request(:post, "/v1/vaults/#{vault_id}/items", {
+          "vault" => {"id" => vault_id},
+          "title" => title,
+          "category" => SECURE_NOTE_CATEGORY,
+          "fields" => [{"purpose" => NOTES_PURPOSE, "value" => notes}]
+        })
+      end
       JSON.pretty_generate(response)
     end
 
     def item_create_or_update_fields(vault:, item:, fields: {})
       vault_id = vault_name_to_id(vault)
-
-      # Try to find existing item by title
       existing = item_by_title_in_vault(vault_id, item)
-
       if existing
-        fields_array = build_patch_fields(existing, fields)
-        api_request(:patch, "/v1/vaults/#{vault_id}/items/#{existing["id"]}", fields_array)
+        api_request(:patch, "/v1/vaults/#{vault_id}/items/#{existing["id"]}", build_patch_fields(existing, fields))
       else
-        # Create new item
-        fields_array = fields.map do |k, v|
-          {
-            "type" => "CONCEALED",
-            "label" => k.to_s,
-            "value" => v.to_s
-          }
-        end
-
-        payload = {
+        api_request(:post, "/v1/vaults/#{vault_id}/items", {
           "vault" => {"id" => vault_id},
           "title" => item,
           "category" => LOGIN_CATEGORY,
-          "fields" => fields_array
-        }
-
-        api_request(:post, "/v1/vaults/#{vault_id}/items", payload)
+          "fields" => fields.map { |k, v| {"type" => "CONCEALED", "label" => k.to_s, "value" => v.to_s} }
+        })
       end
     end
 
     private
 
+    def notes_patch_ops(existing, notes)
+      field = existing["fields"]&.find { |entry| entry["purpose"] == NOTES_PURPOSE || entry["label"] == NOTES_PLAIN_FIELD }
+      if field
+        [{"op" => "replace", "path" => "/fields/#{field["id"]}/value", "value" => notes}]
+      else
+        [{"op" => "add", "path" => "/fields", "value" => {"purpose" => NOTES_PURPOSE, "value" => notes}}]
+      end
+    end
+
     def build_patch_fields(existing, fields)
       fields.map do |key, value|
         existing_field = existing["fields"]&.find { |field| field["label"] == key.to_s }
         if existing_field
-          {
-            "op" => "replace",
-            "path" => "/fields/#{existing_field["id"]}/value",
-            "value" => value.to_s
-          }
+          {"op" => "replace", "path" => "/fields/#{existing_field["id"]}/value", "value" => value.to_s}
         else
-          {
-            "op" => "add",
-            "path" => "/fields",
-            "value" => {
-              "type" => "CONCEALED",
-              "label" => key.to_s,
-              "value" => value.to_s
-            }
-          }
+          {"op" => "add", "path" => "/fields", "value" => {"type" => "CONCEALED", "label" => key.to_s, "value" => value.to_s}}
         end
       end
     end
 
     def parse_path(path)
-      # op://Vault/Item or connect://Vault/Item
       match = path.match(/\A(?:op|connect):\/\/([^\/]+)\/([^\/]+)(?:\/(.+))?\z/)
       raise ConnectApiError, "Invalid path format: #{path}" unless match
-
-      {
-        vault: match[1],
-        item: match[2],
-        field: match[3]
-      }
+      {vault: match[1], item: match[2], field: match[3]}
     end
 
     def vault_name_to_id(vault_name)
@@ -166,20 +131,23 @@ module Opdotenv
       item = item_by_title_in_vault(vault_id, item_title)
       raise ConnectApiError, "Item '#{item_title}' not found in vault '#{vault_name}'" unless item
 
-      # Fetch full item details including fields
-      api_request(:get, "/v1/vaults/#{vault_id}/items/#{item["id"]}")
+      item
     end
 
     def item_by_title_in_vault(vault_id, item_title)
-      # List items and find by title
-      items = api_request(:get, "/v1/vaults/#{vault_id}/items")
-      item = items.find { |i| i["title"] == item_title || i["id"] == item_title }
-      # If found by listing, fetch full details to get fields
-      if item && item["id"]
-        api_request(:get, "/v1/vaults/#{vault_id}/items/#{item["id"]}")
-      else
-        item
-      end
+      filter = URI.encode_www_form_component(%(title eq "#{item_title.to_s.gsub('"', '\\"')}"))
+      items = api_request(:get, "/v1/vaults/#{vault_id}/items?filter=#{filter}")
+      item = Array(items).find { |entry| entry["title"] == item_title || entry["id"] == item_title }
+      return item_by_uuid(vault_id, item_title) if item.nil?
+      item["id"] ? api_request(:get, "/v1/vaults/#{vault_id}/items/#{item["id"]}") : item
+    end
+
+    def item_by_uuid(vault_id, item_id)
+      return nil unless item_id.to_s.match?(/\A[0-9a-f-]{36}\z/i)
+
+      api_request(:get, "/v1/vaults/#{vault_id}/items/#{item_id}")
+    rescue ConnectApiError
+      nil
     end
 
     def find_field(item, field_name)
@@ -201,12 +169,8 @@ module Opdotenv
     end
 
     def build_uri(path)
-      # Validate path to prevent path traversal attacks
-      # API paths legitimately start with "/", so only check for ".."
       raise ConnectApiError, "Invalid path: #{path}" if path.include?("..")
 
-      # Use URI.join which handles path normalization safely
-      # URI.join expects base URL without trailing slash for proper joining
       base_uri = @base_url.end_with?("/") ? @base_url[0..-2] : @base_url
       normalized_path = path.start_with?("/") ? path : "/#{path}"
       URI.join(base_uri, normalized_path)
@@ -243,7 +207,7 @@ module Opdotenv
         attempts += 1
         http.request(request)
       rescue Timeout::Error, Errno::ECONNRESET
-        raise if attempts >= 2
+        raise if attempts >= 2 || !request.is_a?(Net::HTTP::Get)
         sleep 0.2
         retry
       end
@@ -253,9 +217,13 @@ module Opdotenv
       code = response.code.to_i
 
       case code
-      when 200, 204
-        return {} if response.body.empty? || code == 204
-        JSON.parse(response.body)
+      when 200..299
+        return {} if response.body.to_s.empty? || code == 204
+        begin
+          JSON.parse(response.body)
+        rescue JSON::ParserError
+          raise ConnectApiError, "API error (#{code}): Invalid JSON response"
+        end
       when 401
         raise ConnectApiError, "Unauthorized: Invalid or missing access token"
       when 403
@@ -265,22 +233,8 @@ module Opdotenv
       when 500..599
         raise ConnectApiError, "API error (#{code}): Server error"
       else
-        # Extract safe error message without leaking response body
-        safe_message = extract_safe_error_message(response)
-        raise ConnectApiError, "API error (#{code}): #{safe_message}"
+        raise ConnectApiError, "API error (#{code}): Request failed"
       end
-    end
-
-    def extract_safe_error_message(response)
-      # Only extract structured error messages from JSON responses
-      # Never include raw response body to avoid leaking secrets
-
-      parsed = JSON.parse(response.body)
-      # Only return known safe fields that are typically error messages
-      parsed["message"] || parsed["error"] || "Request failed"
-    rescue JSON::ParserError
-      # For non-JSON responses, return generic message to avoid leaking body
-      "Request failed"
     end
 
     def validate_url(url)

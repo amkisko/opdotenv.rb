@@ -18,7 +18,6 @@ module Opdotenv
 
       # Check if path matches format patterns (Secure Note) or regular item (fields)
       if FormatInferrer.matches_format_pattern?(item_name)
-        # Create Secure Note
         field_type ||= FormatInferrer.infer_from_name(item_name) || :dotenv
         content = serialize_by_format(data, field_type)
         client.item_create_note(vault: vault, title: item_name, notes: content)

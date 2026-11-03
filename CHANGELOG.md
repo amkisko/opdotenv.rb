@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 1.0.6 (2026-11-03)
+
+- Keep exported secrets out of 1Password CLI command arguments.
+- Upsert Secure Note exports on create and edit for both `op` CLI and Connect.
+- Use dedicated configuration items for CLI exports; existing-item updates cannot preserve passkeys.
+- Infer export formats correctly when no override is supplied; match `.env` basenames only.
+- Accept successful Connect API creation responses and avoid repeating writes after timeouts.
+- Filter Connect item lookups by title and omit server response values from error messages.
+- Fetch item details once per read after the filtered list.
+- Cancel release preparation when confirmation input is closed.
+
 ## 1.0.5 (2026-07-06)
 
 - Improve `OPDOTENV_DEBUG` field summary logging in Anyway Config integration to build messages only when Rails debug logging is active

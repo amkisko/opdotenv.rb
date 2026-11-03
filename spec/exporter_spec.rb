@@ -123,8 +123,20 @@ RSpec.describe Opdotenv::Exporter do
   end
 
   describe ".infer_format_from_item" do
-    it "infers dotenv from .env pattern" do
+    it "infers dotenv from .env basenames" do
+      expect(described_class.infer_format_from_item(".env")).to eq(:dotenv)
       expect(described_class.infer_format_from_item(".env.development")).to eq(:dotenv)
+    end
+
+    it "does not treat mid-name .env fragments as dotenv matches" do
+      expect(Opdotenv::FormatInferrer.infer_from_name("my.envfile")).to be_nil
+      expect(Opdotenv::FormatInferrer.infer_from_name("foo.env")).to be_nil
+      expect(Opdotenv::FormatInferrer.matches_format_pattern?("my.envfile")).to be(false)
+    end
+
+    it "infers dotenv from spaced item titles" do
+      expect(Opdotenv::FormatInferrer.infer_from_name("ProjectName .env.development")).to eq(:dotenv)
+      expect(Opdotenv::FormatInferrer.infer_from_name("App .env")).to eq(:dotenv)
     end
 
     it "infers json from any item ending with .json" do

@@ -1,6 +1,5 @@
 require "json"
 require "yaml"
-require "shellwords"
 
 require_relative "opdotenv/version"
 require_relative "opdotenv/format_inferrer"

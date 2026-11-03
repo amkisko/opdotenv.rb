@@ -27,19 +27,11 @@ when "export"
   end.parse!(ARGV)
   abort("--path and --file required") unless path && file
   # Infer format from file extension if not provided
-  field_type ||= infer_format_from_file(file)
+  field_type ||= Opdotenv::FormatInferrer.infer_from_name(file) || :dotenv
   text = File.read(file)
   data = Opdotenv::Loader.parse_by_format(text, field_type)
   Opdotenv::Exporter.export(path: path, data: data, field_type: field_type)
 else
   warn "Usage: opdotenv (read|export) ..."
   exit 1
-end
-
-def infer_format_from_file(file)
-  case File.extname(file)
-  when ".json" then :json
-  when ".yaml", ".yml" then :yaml
-  else :dotenv
-  end
 end

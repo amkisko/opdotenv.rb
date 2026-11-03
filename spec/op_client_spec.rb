@@ -1,7 +1,7 @@
 require "spec_helper"
 
 class TestOpClient < Opdotenv::OpClient
-  attr_reader :calls
+  attr_reader :calls, :last_input
 
   def initialize(exists: false)
     super()
@@ -13,30 +13,73 @@ class TestOpClient < Opdotenv::OpClient
     @exists
   end
 
-  def capture(args)
+  def capture(args, **options)
     @calls << args
+    @last_input = options[:stdin_data]
     "OK"
   end
 end
 
 RSpec.describe Opdotenv::OpClient do
+  it "passes note contents through stdin instead of process arguments", :aggregate_failures do
+    status = instance_double(Process::Status, success?: true)
+    allow(Open3).to receive(:capture2e).and_return(["{}", status])
+    client = described_class.new
+    allow(client).to receive(:system).and_return(false)
+    client.item_create_note(vault: "V", title: "T", notes: "synthetic-secret")
+    expect(Open3).to have_received(:capture2e).with("op", "item", "create", "--category", "secure-note", "--title", "T", "--vault", "V", "-", stdin_data: a_string_including("synthetic-secret"))
+  end
+
+  it "passes field create secrets through stdin instead of process arguments", :aggregate_failures do
+    status = instance_double(Process::Status, success?: true)
+    allow(Open3).to receive(:capture2e).and_return(["{}", status])
+    client = described_class.new
+    allow(client).to receive(:system).and_return(false)
+    client.item_create_or_update_fields(vault: "V", item: "I", fields: {"A" => "synthetic-secret"})
+    expect(Open3).to have_received(:capture2e).with(
+      "op", "item", "create", "--title", "I", "--vault", "V", "-",
+      stdin_data: a_string_including("synthetic-secret")
+    )
+  end
+
+  it "passes field edit secrets through stdin instead of process arguments", :aggregate_failures do
+    status = instance_double(Process::Status, success?: true)
+    allow(Open3).to receive(:capture2e).and_return(['{"id":"I","fields":[{"label":"A","value":"old"}]}', status], ["{}", status])
+    client = described_class.new
+    allow(client).to receive(:system).and_return(true)
+    client.item_create_or_update_fields(vault: "V", item: "I", fields: {"A" => "synthetic-secret"})
+    expect(Open3).to have_received(:capture2e).with(
+      "op", "item", "edit", "I", "--vault", "V",
+      stdin_data: a_string_including("synthetic-secret")
+    )
+  end
+
   it "updates fields when item exists" do
     client = TestOpClient.new(exists: true)
+    allow(client).to receive(:item_get).and_return('{"id":"I","fields":[{"label":"A","value":"old"}]}')
     client.item_create_or_update_fields(vault: "V", item: "I", fields: {"A" => "1", "B" => "2"})
-    expect(client.calls).to include(["op", "item", "edit", "I", "--vault", "V", "--set", "A=1"])
-    expect(client.calls).to include(["op", "item", "edit", "I", "--vault", "V", "--set", "B=2"])
+    expect(client.calls).to include(["op", "item", "edit", "I", "--vault", "V"])
+    expect(JSON.parse(client.last_input)["fields"]).to include(hash_including("label" => "B", "value" => "2"))
   end
 
   it "creates item when it does not exist" do
     client = TestOpClient.new(exists: false)
     client.item_create_or_update_fields(vault: "V", item: "I", fields: {"A" => "1"})
-    expect(client.calls.first).to eq(["op", "item", "create", "--title", "I", "--vault", "V", "--set", "A=1"])
+    expect(client.calls.first).to eq(["op", "item", "create", "--title", "I", "--vault", "V", "-"])
   end
 
   it "creates note with notesPlain" do
-    client = TestOpClient.new
+    client = TestOpClient.new(exists: false)
     client.item_create_note(vault: "V", title: "T", notes: "body")
-    expect(client.calls.first).to eq(["op", "item", "create", "--category", "secure-note", "--title", "T", "--vault", "V", "notesPlain=body"])
+    expect(client.calls.first).to eq(["op", "item", "create", "--category", "secure-note", "--title", "T", "--vault", "V", "-"])
+  end
+
+  it "updates note when the secure note already exists" do
+    client = TestOpClient.new(exists: true)
+    allow(client).to receive(:item_get).and_return('{"id":"T","fields":[{"id":"notesPlain","purpose":"NOTES","value":"old"}]}')
+    client.item_create_note(vault: "V", title: "T", notes: "body")
+    expect(client.calls).to include(["op", "item", "edit", "T", "--vault", "V"])
+    expect(JSON.parse(client.last_input)["fields"]).to include(hash_including("id" => "notesPlain", "value" => "body"))
   end
 
   it "reads and item_get delegates to capture" do
