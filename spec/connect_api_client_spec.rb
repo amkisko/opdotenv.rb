@@ -305,8 +305,7 @@ RSpec.describe Opdotenv::ConnectApiClient do
     end
 
     it "raises ConnectApiError for non-JSON success bodies" do
-      allow(response).to receive(:code).and_return("200")
-      allow(response).to receive(:body).and_return("<html>ok</html>")
+      allow(response).to receive_messages(code: "200", body: "<html>ok</html>")
       expect {
         client.send(:api_request, :get, "/v1/vaults")
       }.to raise_error(Opdotenv::ConnectApiClient::ConnectApiError, /API error \(200\): Invalid JSON response/)
